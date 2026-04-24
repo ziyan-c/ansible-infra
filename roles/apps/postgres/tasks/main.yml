@@ -1,0 +1,63 @@
+---
+- name: 创建 Postgres 工作与数据目录
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: 999  # 👈 对应 postgres 容器内用户的 UID，非常关键
+    group: 999
+    mode: '0750'
+  loop:
+    - /opt/postgres
+    - "{{ pg_data_dir }}"
+    - "{{ pg_custom_dir }}"
+
+- name: 下发 Postgres Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/postgres/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Postgres
+
+- name: 启动 Postgres 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/postgres
+    state: present
+
+
+
+- name: 创建备份目录
+  file:
+    path: /opt/postgres_backups  # 👈 修改这里：放到同级目录
+    state: directory
+    mode: '0700'
+
+- name: 下发全库备份脚本
+  template:
+    src: pg_backup_all.sh.j2
+    dest: /opt/postgres/pg_backup_all.sh
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 设置定时任务 (每天两次全量备份 - 03:00 和 15:00)
+  ansible.builtin.cron:
+    name: "Postgres Full Instance Backup"
+    minute: "0"
+    hour: "3,15"  # 这里的逗号表示在这两个小时分别执行一次
+    job: "/opt/postgres/pg_backup_all.sh >> /var/log/pg_backup_all.log 2>&1"
+
+- name: 配置 PostgreSQL 备份日志轮转
+  copy:
+    dest: /etc/logrotate.d/pg_backup
+    content: |
+      /var/log/pg_backup_all.log {
+          daily
+          rotate 7
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+      }

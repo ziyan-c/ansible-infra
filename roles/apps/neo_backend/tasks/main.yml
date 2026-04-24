@@ -1,0 +1,38 @@
+---
+- name: 创建 Neo-Backend 工作目录
+  file:
+    path: /opt/neo_backend
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# 💡 提示：如果你的 go-proxy 是现场编译的，你需要在这里加一个 task
+# 把你本地的 coding 文件夹拷贝到目标服务器的 /opt/neo_backend/coding
+# 例如使用 copy 或 synchronize 模块。
+
+- name: 确保外部网络 web-proxy 存在
+  docker_network:
+    name: web-proxy
+    state: present
+
+- name: 下发 Neo-Backend Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/neo_backend/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Neo-Backend
+
+# go-proxy 到目标服务器
+#       - "--chown=root:root"
+#       - "--chmod=D0755,F0644"
+#     notify: Restart Neo-Backend
+## TODO: docker container replacement 
+
+- name: 启动 Neo-Backend 和 SSH-Tunnel 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/neo_backend
+    state: present
+    build: always # 确保如果有代码更新，会自动重新 build

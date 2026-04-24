@@ -1,0 +1,102 @@
+---
+- name: 创建 Caddy 工作与证书目录
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+    recurse: yes   # 👈 必须加上这行！相当于 mkdir -p
+  loop:
+    - /opt/caddy
+    - /opt/caddy/site
+    - /opt/caddy/data
+    - /opt/caddy/config
+    - /opt/caddy/certs/cloudflare
+
+
+- name: 下发 Cloudflare 源证书 (CRT)
+  copy:
+    src: "{{ playbook_dir }}/.local/cf-certs/server.crt"  # 👈 修改这里
+    dest: /opt/caddy/certs/cloudflare/server.crt
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Caddy
+
+- name: 下发 Cloudflare 源证书私钥 (KEY)
+  copy:
+    src: "{{ playbook_dir }}/.local/cf-certs/server.key"  # 👈 修改这里
+    dest: /opt/caddy/certs/cloudflare/server.key
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart Caddy
+
+- name: 确保外部网络 web-proxy 存在 (用于与 V2ray/Neo 通信)
+  docker_network:
+    name: web-proxy
+    state: present
+
+- name: 下发 Caddyfile 配置文件
+  template:
+    src: Caddyfile.j2
+    dest: /opt/caddy/Caddyfile
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Caddy
+
+- name: 下发 Caddy Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/caddy/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Caddy
+
+- name: 启动 Caddy 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/caddy
+    state: present
+
+
+
+# ==========================================
+# 自动化备份 Caddy 目录 (Site, Config, Data)
+# ==========================================
+- name: 创建 Caddy 备份存放目录
+  file:
+    path: /opt/caddy_backups
+    state: directory
+    mode: '0700'
+
+- name: 下发 Caddy 自动备份脚本
+  template:
+    src: caddy_backup.sh.j2
+    dest: /opt/caddy/caddy_backup.sh
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 设置定时任务 (每天凌晨 5 点, 17 点 执行 Caddy 备份)
+  ansible.builtin.cron:
+    name: "Caddy Full Backup"
+    minute: "0"
+    hour: "5,17"  # 👈 错开时间：Postgres(3点), Mailcow(4点), Caddy(5点)
+    job: "/opt/caddy/caddy_backup.sh >> /var/log/caddy_backup.log 2>&1"
+
+- name: 配置 Caddy 备份日志轮转
+  copy:
+    dest: /etc/logrotate.d/caddy_backup
+    content: |
+      /var/log/caddy_backup.log {
+          daily
+          rotate 7
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+      }

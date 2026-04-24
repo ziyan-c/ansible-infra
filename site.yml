@@ -1,0 +1,89 @@
+---
+# ==========================================
+# 第一阶段：基础架构层 (Base)
+# ==========================================
+- name: 初始化所有服务器基础环境
+  hosts: init_nodes
+  become: yes
+  gather_facts: yes  # 👈 必须为 yes，否则拿不到网卡名
+  roles:
+    - role: base/system_init
+      tags: ['init', 'base']
+
+    - role: base/docker_setup
+      tags: ['docker', 'base']
+
+- name: 组建 WireGuard 全互联大内网
+  hosts: vpn_mesh_nodes
+  become: yes
+  gather_facts: yes  # 👈 必须加上！防止单独跑 tags 时网卡变量未定义！
+  roles:
+    - role: base/vpn_wireguard
+      tags: ['vpn', 'wireguard', 'base']
+
+
+# ==========================================
+# 第二阶段：网关与代理层 (Gateway & Proxy)
+# ==========================================
+- name: 部署泛域名证书中枢 (仅限主节点执行)
+  hosts: cert_master_nodes   # 👈 完美解耦，只针对负责证书的组
+  become: yes
+  roles:
+    - role: gateway/certbot
+      tags: ['certbot', 'gateway']
+
+- name: 部署分布式 Web 网关 (Caddy)
+  hosts: gateway_nodes       # 👈 所有网关节点并发执行
+  become: yes
+  roles:
+    - role: gateway/caddy
+      tags: ['caddy', 'gateway']
+
+
+# ==========================================
+# 第三阶段：业务应用层 (Apps)
+# ==========================================
+- name: 部署 V2ray 核心节点
+  hosts: v2ray_nodes        # 👈 修复：直接使用 inventory 中定义好的组名
+  become: yes
+  roles:
+    - role: apps/v2ray
+      tags: ['v2ray', 'apps']
+
+- name: 部署 AI 向量数据库
+  hosts: db_postgres_nodes  # 👈 修复：直接使用 inventory 中定义好的组名
+  become: yes
+  roles:
+    - role: apps/postgres
+      tags: ['db', 'postgres', 'apps']
+
+- name: 部署企业级邮局 Mailcow
+  hosts: mail_nodes         # 👈 修复：直接使用 inventory 中定义好的组名
+  become: yes
+  roles:
+    - role: apps/mailcow
+      tags: ['mailcow', 'apps']
+
+- name: 部署 Zammad 工单系统
+  hosts: zammad_nodes       # 👈 修复：直接使用 inventory 中定义好的组名
+  become: yes
+  roles:
+    - role: apps/zammad
+      tags: ['zammad', 'apps']
+
+- name: 部署 Cloudflare Tunnel 接入点
+  hosts: tunnel_nodes   
+  become: yes
+  roles:
+    - role: apps/cloudflared
+      tags: ['cloudflared', 'tunnel', 'apps']
+
+
+      
+# 把最后这一块全部用 # 注释掉
+# - name: 部署 AI 服务网关与隧道
+#   hosts: neo_backend_nodes
+#   become: yes
+#   roles:
+#     - role: apps/neo_backend
+#       tags: ['neo', 'apps']

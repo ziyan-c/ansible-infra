@@ -1,0 +1,66 @@
+#!/bin/bash
+# ==========================================
+# Mailcow 自动化全量备份脚本
+# ==========================================
+
+# 👇 修复 1: 必须补全环境变量，否则 Cron 执行时会报 "docker: command not found"
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# --- 1. 配置变量 ---
+ROLE_NAME="mailcow"
+MAILCOW_DIR="/opt/mailcow-dockerized"
+BACKUP_ROOT="/opt/mailcow_backups"
+GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}"
+
+# 👇 引入 Ansible 全局变量
+KEEP_LOCAL={{ backup_keep_local }}
+KEEP_REMOTE={{ backup_keep_remote }}
+
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+TAR_FILE="mailcow_backup_$TIMESTAMP.tar.gz"
+
+# --- 2. 执行官方备份 ---
+mkdir -p "$BACKUP_ROOT"
+echo "[$TIMESTAMP] 开始执行 Mailcow 官方备份脚本..."
+
+# 👇 修复 2: 官方脚本识别的变量名叫 BACKUP_LOCATION，不是 MAILCOW_BACKUP_LOCATION！
+# 不改这个，脚本会在后台卡死，死等用户按键盘输入路径！
+export BACKUP_LOCATION="$BACKUP_ROOT"
+cd "$MAILCOW_DIR" || exit 1
+
+# 👇 修复 3: 增加严格的错误拦截。如果不拦截，一旦前面崩溃了，后面还会打包一个空文件夹上传覆盖云端！
+if ! ./helper-scripts/backup_and_restore.sh backup all; then
+    echo "[$TIMESTAMP] 🚨 Mailcow 官方备份脚本执行失败！已中止流程。"
+    exit 1
+fi
+
+# --- 3. 压缩打包 ---
+LATEST_BACKUP_DIR=$(ls -1td "$BACKUP_ROOT"/mailcow-* 2>/dev/null | head -n 1)
+
+if [ -n "$LATEST_BACKUP_DIR" ] && [ -d "$LATEST_BACKUP_DIR" ]; then
+    echo "[$TIMESTAMP] 备份成功，正在压缩: $LATEST_BACKUP_DIR"
+    tar -czf "$BACKUP_ROOT/$TAR_FILE" -C "$BACKUP_ROOT" "$(basename "$LATEST_BACKUP_DIR")"
+    
+    # 压缩完成后，删除原文件夹，释放本地磁盘空间
+    rm -rf "$LATEST_BACKUP_DIR"
+else
+    echo "[$TIMESTAMP] 🚨 Mailcow 备份文件夹未生成或不存在！"
+    exit 1
+fi
+
+# --- 4. 上传到 Google Drive ---
+echo "[$TIMESTAMP] 正在上传至 Google Drive..."
+rclone copy "$BACKUP_ROOT/$TAR_FILE" "$GDRIVE_REMOTE"
+
+# --- 5. 清理本地旧备份 ---
+ls -1t "$BACKUP_ROOT"/mailcow_backup_*.tar.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -I {} rm -f -- "{}"
+
+# --- 6. 清理远端旧备份 ---
+rclone lsf "$GDRIVE_REMOTE" --files-only | grep '^mailcow_backup_' | sort | head -n -$KEEP_REMOTE | while read -r filename; do
+    if [ -n "$filename" ]; then
+        rclone deletefile "$GDRIVE_REMOTE/$filename"
+        echo "[$TIMESTAMP] 已清理远端备份: $filename"
+    fi
+done
+
+echo "[$TIMESTAMP] Mailcow 备份与清理流程结束。"

@@ -1,0 +1,65 @@
+#!/bin/bash
+# ==========================================
+# Zammad 自动化备份脚本 (原生清理 + 本地/云端解耦版)
+# ==========================================
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# --- 1. 配置变量 ---
+ROLE_NAME="zammad"
+GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# 云端保留份数依然需要脚本自己处理 (Zammad 管不到网盘)
+KEEP_REMOTE={{ backup_keep_remote }}
+
+# 动态定位 Docker 备份卷路径
+VOLUME_PATH=$(docker volume inspect zammad_zammad-backup -f '{% raw %}{{ .Mountpoint }}{% endraw %}' 2>/dev/null)
+
+# --- 2. 逻辑分支 ---
+case "$1" in
+    local)
+        echo "[$TIMESTAMP] --- 执行阶段: 本地全量备份 (依赖 HOLD_DAYS 自动清理) ---"
+        # 必须先进入 compose 目录，且使用 -T 取消 TTY 分配（Cron 环境下没有 TTY 会报错）
+        cd /opt/zammad || exit 1
+        if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/scripts/zammad_backup.sh; then
+            echo "[$TIMESTAMP] ✅ Zammad 本地备份与内置垃圾回收成功！"
+        else
+            echo "[$TIMESTAMP] 🚨 Zammad 本地备份失败！"
+            exit 1
+        fi
+        ;;
+
+    cloud)
+        echo "[$TIMESTAMP] --- 执行阶段: 云端同步 ---"
+        if [ -z "$VOLUME_PATH" ] || [ ! -d "$VOLUME_PATH" ]; then
+            echo "[$TIMESTAMP] 🚨 错误：找不到备份物理路径 $VOLUME_PATH"
+            exit 1
+        fi
+
+        echo "[$TIMESTAMP] 正在将本地备份镜像至 Google Drive..."
+        if rclone copy "$VOLUME_PATH" "$GDRIVE_REMOTE" -v; then
+            echo "[$TIMESTAMP] ✅ 云端同步成功！"
+            
+            # --- 远端清理逻辑 ---
+            echo "[$TIMESTAMP] 正在清理云端旧备份 (保留最新的 $KEEP_REMOTE 组)..."
+            # Zammad 每次备份产出2个文件，所以文件总数是 KEEP_REMOTE * 2
+            rclone lsf "$GDRIVE_REMOTE" --files-only | sort | head -n -$((KEEP_REMOTE * 2)) | while read -r filename; do
+                if [ -n "$filename" ]; then
+                    rclone deletefile "$GDRIVE_REMOTE/$filename"
+                    echo "[$TIMESTAMP] 已清理远端旧文件: $filename"
+                fi
+            done
+        else
+            echo "[$TIMESTAMP] 🚨 云端同步失败！"
+            exit 1
+        fi
+        ;;
+
+    *)
+        echo "用法: $0 {local|cloud}"
+        exit 1
+        ;;
+esac
+
+echo "[$TIMESTAMP] 任务完成。"

@@ -1,0 +1,5 @@
+---
+- name: Restart Zammad
+  community.docker.docker_compose_v2:
+    project_src: /opt/zammad
+    state: restarted

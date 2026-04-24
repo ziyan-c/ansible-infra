@@ -1,0 +1,5 @@
+---
+- name: Restart Cloudflared
+  community.docker.docker_compose_v2:
+    project_src: /opt/cloudflared
+    state: restarted

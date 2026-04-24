@@ -1,0 +1,28 @@
+---
+- name: 创建 Cloudflared 工作目录
+  file:
+    path: /opt/cloudflared
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 确保外部网络 web-proxy 存在
+  docker_network:
+    name: web-proxy
+    state: present
+
+- name: 下发 Cloudflared Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/cloudflared/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Cloudflared
+
+- name: 启动 Cloudflared 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/cloudflared
+    state: present
+    pull: missing

@@ -1,0 +1,31 @@
+---
+- name: 创建 Xray 工作目录
+  file:
+    path: /opt/xray
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 下发 Xray 配置文件 (config.json)
+  template:
+    src: config.json.j2
+    dest: /opt/xray/config.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Xray
+
+- name: 下发 Xray Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/xray/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Xray
+
+- name: 启动 Xray 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/xray
+    state: present

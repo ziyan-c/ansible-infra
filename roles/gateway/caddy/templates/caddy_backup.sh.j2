@@ -1,0 +1,55 @@
+#!/bin/bash
+# ==========================================
+# Caddy 自动化全量备份脚本 (目录打包)
+# ==========================================
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# --- 1. 配置变量 ---
+ROLE_NAME="caddy"
+TARGET_DIR="/opt/caddy"
+BACKUP_ROOT="/opt/caddy_backups"
+GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}/{{ inventory_hostname }}"
+
+# 👇 引入 Ansible 全局变量
+KEEP_LOCAL={{ backup_keep_local }}
+KEEP_REMOTE={{ backup_keep_remote }}
+
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+TAR_FILE="caddy_backup_${TIMESTAMP}.tar.gz"
+
+# --- 2. 压缩打包 ---
+mkdir -p "$BACKUP_ROOT"
+echo "[$TIMESTAMP] 开始打包 Caddy 目录 ($TARGET_DIR) ..."
+
+# 使用 tar 打包整个 /opt/caddy 目录（排除备份脚本自身和生成的备份文件夹，以防万一）
+# 修改 caddy_backup.sh.j2 中的这行代码：
+tar -czf "$BACKUP_ROOT/$TAR_FILE" \
+    --exclude="caddy/caddy_backup.sh" \
+    -C /opt caddy
+# 👆 这样写，tar 才能准确剔除掉 caddy 目录下的那个脚本
+
+
+if [ $? -eq 0 ] && [ -s "$BACKUP_ROOT/$TAR_FILE" ]; then
+    echo "[$TIMESTAMP] 打包成功: $TAR_FILE"
+else
+    echo "[$TIMESTAMP] 🚨 打包失败！"
+    exit 1
+fi
+
+# --- 3. 上传到 Google Drive ---
+echo "[$TIMESTAMP] 正在上传至 Google Drive ($GDRIVE_REMOTE) ..."
+rclone copy "$BACKUP_ROOT/$TAR_FILE" "$GDRIVE_REMOTE"
+
+# --- 4. 清理本地旧备份 (仅保留 KEEP_LOCAL 份) ---
+ls -1t "$BACKUP_ROOT"/caddy_backup_*.tar.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -I {} rm -f -- "{}"
+
+# --- 5. 清理远端旧备份 (保留 KEEP_REMOTE 份) ---
+rclone lsf "$GDRIVE_REMOTE" --files-only | grep '^caddy_backup_' | sort | head -n -$KEEP_REMOTE | while read -r filename; do
+    if [ -n "$filename" ]; then
+        rclone deletefile "$GDRIVE_REMOTE/$filename"
+        echo "[$TIMESTAMP] 已清理远端备份: $filename"
+    fi
+done
+
+echo "[$TIMESTAMP] Caddy 备份与清理流程结束。"

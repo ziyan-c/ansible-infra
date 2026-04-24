@@ -1,0 +1,5 @@
+---
+- name: Restart V2ray
+  community.docker.docker_compose_v2:
+    project_src: /opt/v2ray
+    state: restarted

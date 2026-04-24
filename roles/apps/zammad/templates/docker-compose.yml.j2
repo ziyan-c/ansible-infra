@@ -1,0 +1,195 @@
+---
+# ===============================================
+# 魔法：根据分配的数据库机器名，动态提取它的内网 IP
+# ===============================================
+{% set db_node = wg_servers.values() | selectattr('hostname', 'equalto', deploy_node_postgres) | first %}
+
+x-shared:
+  zammad-service: &zammad-service
+    # 👇 神来之笔：强行让所有 Zammad 容器认为 db 的 IP 就是独立数据库节点的内网 IP
+    extra_hosts:
+      - "db:{{ wg_network_prefix }}.{{ db_node.ip_suffix }}"
+
+    environment: &zammad-environment
+      MEMCACHE_SERVERS: ${MEMCACHE_SERVERS:-zammad-memcached:11211}
+      POSTGRESQL_DB: ${POSTGRES_DB:-zammad_production}
+      POSTGRESQL_HOST: ${POSTGRES_HOST:-zammad-postgresql}
+      POSTGRESQL_USER: ${POSTGRES_USER:-zammad}
+      POSTGRESQL_PASS: ${POSTGRES_PASS:-zammad}
+      POSTGRESQL_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRESQL_OPTIONS: ${POSTGRESQL_OPTIONS:-?pool=50}
+      POSTGRESQL_DB_CREATE:
+
+      # Redis standalone
+      REDIS_URL: ${REDIS_URL:-redis://zammad-redis:6379}
+      # Redis sentinel
+      REDIS_SENTINELS:
+      REDIS_SENTINEL_NAME:
+      REDIS_USERNAME:
+      REDIS_PASSWORD:
+      REDIS_SENTINEL_USERNAME:
+      REDIS_SENTINEL_PASSWORD:
+
+      S3_URL:
+      # Backup settings
+      BACKUP_DIR: "${BACKUP_DIR:-/var/tmp/zammad}"
+      
+      # 👇 禁用 Zammad 自带的定时触发器，改由宿主机脚本精确调度！
+      BACKUP_TIME: "disabled"
+      
+      # 👇 本地保留份数依然有效（备份脚本依然会读取这个变量做本地清理）
+      HOLD_DAYS: "{{ backup_keep_local }}"
+      TZ: "${TZ:-Europe/Berlin}"
+      # Allow passing in these variables via .env:
+      AUTOWIZARD_JSON:
+      AUTOWIZARD_RELATIVE_PATH:
+      ELASTICSEARCH_ENABLED:
+      ELASTICSEARCH_SCHEMA:
+      ELASTICSEARCH_HOST:
+      ELASTICSEARCH_PORT:
+      ELASTICSEARCH_USER:
+      ELASTICSEARCH_PASS:
+      ELASTICSEARCH_NAMESPACE:
+      ELASTICSEARCH_REINDEX:
+      NGINX_PORT:
+      NGINX_CLIENT_MAX_BODY_SIZE:
+      NGINX_SERVER_NAME:
+      NGINX_SERVER_SCHEME: https
+      
+      # 像这样把网段 JSON 字符串死死地钉在这里
+      # 无效！！
+      # RAILS_TRUSTED_PROXIES: '["127.0.0.1", "::1", "172.16.0.0/12", "172.18.0.0/16", "192.168.0.0/16"]'
+      RAILS_TRUSTED_PROXIES: ${RAILS_TRUSTED_PROXIES}
+
+      ZAMMAD_HTTP_TYPE: ${ZAMMAD_HTTP_TYPE}
+      ZAMMAD_FQDN: ${ZAMMAD_FQDN}
+      ZAMMAD_WEB_CONCURRENCY:
+      ZAMMAD_MANAGE_SESSIONS_JOBS_WORKERS:
+      ZAMMAD_PROCESS_SESSIONS_JOBS_WORKERS:
+      ZAMMAD_PROCESS_SCHEDULED_JOBS_WORKERS:
+      ZAMMAD_PROCESS_DELAYED_JOBS_WORKERS:
+      ZAMMAD_PROCESS_DELAYED_JOBS_WORKER_THREADS:
+      ZAMMAD_PROCESS_DELAYED_AI_JOBS_WORKERS:
+      ZAMMAD_PROCESS_DELAYED_AI_JOBS_WORKER_THREADS:
+      ZAMMAD_PROCESS_DELAYED_COMMUNICATION_INBOUND_JOBS_WORKERS:
+      ZAMMAD_PROCESS_DELAYED_COMMUNICATION_INBOUND_JOBS_WORKER_THREADS:
+      ZAMMAD_OTRS_IMPORT_READ_TIMEOUT:
+      ZAMMAD_OTRS_IMPORT_TOTAL_TIMEOUT:
+
+      # ZAMMAD_SESSION_JOBS_CONCURRENT is deprecated, please use ZAMMAD_PROCESS_SESSIONS_JOBS_WORKERS instead.
+      ZAMMAD_SESSION_JOBS_CONCURRENT:
+      # Variables used by ngingx-proxy container for reverse proxy creations
+      # for docs refer to https://github.com/nginx-proxy/nginx-proxy
+      VIRTUAL_HOST:
+      VIRTUAL_PORT:
+      # Variables used by acme-companion for retrieval of LetsEncrypt certificate
+      # for docs refer to https://github.com/nginx-proxy/acme-companion
+      LETSENCRYPT_HOST:
+      LETSENCRYPT_EMAIL:
+
+    image: ${IMAGE_REPO:-ghcr.io/zammad/zammad}:${VERSION:-7.0.1-0006}
+    restart: ${RESTART:-always}
+    volumes:
+      - zammad-backup:/var/tmp/zammad:ro  # needed for waiting on restore operations
+      - zammad-storage:/opt/zammad/storage
+    depends_on:
+      - zammad-memcached
+      - zammad-postgresql
+      - zammad-redis
+
+services:
+  zammad-backup:
+    <<: *zammad-service
+    command: ["zammad-backup"]
+    volumes:
+      - zammad-backup:/var/tmp/zammad
+      - zammad-storage:/opt/zammad/storage
+    user: 0:0
+
+  zammad-elasticsearch:
+    image: elasticsearch:${ELASTICSEARCH_VERSION:-9.3.3}
+    restart: ${RESTART:-always}
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: ${ELASTICSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+
+  zammad-init:
+    <<: *zammad-service
+    command: ["zammad-init"]
+    depends_on:
+      - zammad-postgresql
+      - zammad-memcached
+    restart: on-failure
+    user: 0:0
+
+  zammad-memcached:
+    command: memcached -m 256M
+    image: memcached:${MEMCACHE_VERSION:-1.6.41-alpine}
+    restart: ${RESTART:-always}
+
+
+  zammad-nginx:
+    <<: *zammad-service
+    command: ["zammad-nginx"]
+    expose:
+      - "${NGINX_PORT:-8080}"  # 保留 expose，它只在 Docker 网络内部声明端口，不对外
+    # ports:  <--- 【修改点1】注释掉这两行，坚决不对外暴露端口！
+    #   - "${NGINX_EXPOSE_PORT:-8080}:${NGINX_PORT:-8080}"
+    depends_on:
+      - zammad-railsserver
+    networks:  # <--- 【修改点2】让 nginx 容器同时加入默认网络和你的 web-proxy
+      - default
+      - web-proxy
+
+
+  zammad-postgresql:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zammad_production}
+      POSTGRES_USER: ${POSTGRES_USER:-zammad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS:-zammad}
+    image: postgres:${POSTGRES_VERSION:-17.9-alpine}
+    restart: ${RESTART:-always}
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+
+  zammad-railsserver:
+    <<: *zammad-service
+    command: ["zammad-railsserver"]
+    networks:         # 👈 新增这段，让 Rails 能看见 Caddy
+      - default
+      - web-proxy
+
+  zammad-redis:
+    image: redis:${REDIS_VERSION:-8.6.2-alpine}
+    restart: ${RESTART:-always}
+    volumes:
+      - redis-data:/data
+
+  zammad-scheduler:
+    <<: *zammad-service
+    command: ["zammad-scheduler"]
+
+  zammad-websocket:
+    <<: *zammad-service
+    command: ["zammad-websocket"]
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  postgresql-data:
+    driver: local
+  redis-data:
+    driver: local
+  zammad-backup:
+    driver: local
+  zammad-storage:
+    driver: local
+
+# <--- 【修改点3】在文件最末尾加上这段
+networks:
+  default:
+  web-proxy:
+    external: true

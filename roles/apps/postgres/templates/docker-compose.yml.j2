@@ -1,0 +1,27 @@
+# ===============================================
+# 魔法：根据分配的数据库机器名，动态提取它的内网 IP
+# ===============================================
+{% set db_node = wg_servers.values() | selectattr('hostname', 'equalto', deploy_node_postgres) | first %}
+
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "{{ pg_user }}"
+      POSTGRES_PASSWORD: "{{ pg_password }}"
+      POSTGRES_DB: "{{ pg_db_name }}"
+    ports:
+      # 👇 完美解耦：自动绑定到正确的内网 IP 上
+      - "{{ wg_network_prefix }}.{{ db_node.ip_suffix }}:5432:5432"
+    volumes:
+      - "{{ pg_data_dir }}:/var/lib/postgres/data"
+      - "{{ pg_custom_dir }}:/custom_data"
+      - "{{ certbot_dest_dir }}fullchain.pem:/var/lib/postgres/fullchain.pem:ro"
+      - "{{ certbot_dest_dir }}privkey.pem:/var/lib/postgres/privkey.pem:ro"
+    command: >
+      postgres
+      -c ssl=on
+      -c ssl_cert_file=/var/lib/postgres/fullchain.pem
+      -c ssl_key_file=/var/lib/postgres/privkey.pem

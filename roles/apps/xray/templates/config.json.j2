@@ -1,0 +1,59 @@
+{
+    "log": {
+        "loglevel": "warning"
+    },
+    "routing": {
+        "domainStrategy": "AsIs",
+        "rules": [
+            {
+                "type": "field",
+                "ip": [
+                    "geoip:private"
+                ],
+                "outboundTag": "blocked"
+            },
+            {
+                "type": "field",
+                "network": "tcp,udp",
+                "outboundTag": "direct"
+            }
+        ]
+    },
+    "inbounds": [
+        {
+            "port": 443,
+            "protocol": "vless",
+            "settings": {
+                "clients": [
+                    {
+                        "id": "{{ xray_client_id }}",
+                        "flow": "xtls-rprx-vision"
+                    }
+                ],
+                "decryption": "none"
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "reality",
+                "realitySettings": {
+                    "show": false,
+                    "dest": "{{ xray_reality_dest }}",
+                    "xver": 0,
+                    "serverNames": {{ xray_reality_server_names | to_json }},
+                    "privateKey": "{{ xray_private_key }}",
+                    "shortIds": {{ xray_reality_short_ids | to_json }}
+                }
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "protocol": "freedom",
+            "tag": "direct"
+        },
+        {
+            "protocol": "blackhole",
+            "tag": "blocked"
+        }
+    ]
+}

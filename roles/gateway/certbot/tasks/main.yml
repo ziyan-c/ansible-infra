@@ -1,0 +1,97 @@
+---
+# ==========================================
+# 1. 自动化 SSH 互信 (为了后续 Rsync 畅通无阻)
+# ==========================================
+# ==========================================
+# 1. 自动化 SSH 互信 (为了后续 Rsync 畅通无阻)
+# ==========================================
+- name: 在网关主节点生成专用 SSH 密钥对 (用于证书分发)
+  community.crypto.openssh_keypair:
+    path: /root/.ssh/id_ed25519
+    type: ed25519
+    # 👇 添加这行备注，格式通常为：用户@主机名
+    comment: "ansible-certbot-sync@{{ inventory_hostname }}"
+  register: ssh_keypair
+
+- name: 读取网关主节点的公钥
+  slurp:
+    src: /root/.ssh/id_ed25519.pub
+  register: master_pub_key
+
+- name: 将主节点的公钥授权给边缘节点 (免密 rsync)
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ master_pub_key.content | b64decode }}"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['edge_nodes'] }}"
+  # 这个循环非常魔法：它会让主节点跨越去操作所有边缘节点
+
+# ==========================================
+# 2. 安装 Certbot 与 Cloudflare 插件
+# ==========================================
+- name: 安装 Certbot 及其 DNS 插件
+  apt:
+    name:
+      - certbot
+      - python3-certbot-dns-cloudflare
+      - rsync
+    state: present
+    update_cache: yes
+
+- name: 创建 Certbot 密钥存放目录
+  file:
+    path: /root/.secrets/certbot
+    state: directory
+    mode: '0700'
+
+- name: 下发 Cloudflare API Token 配置
+  template:
+    src: cloudflare.ini.j2
+    dest: /root/.secrets/certbot/cloudflare.ini
+    mode: '0600'
+
+# ==========================================
+# 3. 申请证书与自动化钩子
+# ==========================================
+- name: 检查泛域名证书是否已经存在
+  stat:
+    path: "/etc/letsencrypt/live/{{ base_domain }}/fullchain.pem"
+  register: cert_check
+
+- name: 首次申请泛域名证书 (如果不存在)
+  command: >
+    certbot certonly --dns-cloudflare
+    --dns-cloudflare-credentials /root/.secrets/certbot/cloudflare.ini
+    --email {{ certbot_email }} --agree-tos --non-interactive
+    -d "{{ base_domain }}" -d "*.{{ base_domain }}"
+  when: not cert_check.stat.exists
+
+- name: 植入证书同步钩子 (续签成功时自动触发)
+  template:
+    src: sync_certs.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/sync_certs.sh
+    owner: root
+    group: root
+    mode: '0700'
+
+# 👇 新增：优雅的跨节点等幂性检查逻辑
+- name: 检查边缘节点是否已存在证书
+  ansible.builtin.stat:
+    path: "{{ certbot_dest_dir }}fullchain.pem"
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['edge_nodes'] }}"
+  register: edge_cert_status
+  # 这里忽略错误，防止边缘节点网络波动导致整个剧本卡死
+  ignore_errors: yes
+
+- name: 立即执行一次证书同步 (仅当主节点刚申请，或边缘节点确实丢失时触发)
+  command: /etc/letsencrypt/renewal-hooks/deploy/sync_certs.sh
+  when: >
+    not cert_check.stat.exists or
+    (edge_cert_status.results | default([]) | rejectattr('stat.exists', 'defined') | list | length > 0) or
+    (edge_cert_status.results | default([]) | rejectattr('stat.exists') | list | length > 0)
+  # 条件解释：
+  # 1. 主节点本身没有证书 (首次申请)
+  # 2. 或者状态检查失败 (稳妥起见，视为缺失)
+  # 3. 或者有任何一个边缘节点的 stat.exists 为 false

@@ -1,0 +1,114 @@
+---
+- name: 创建 Zammad 工作目录
+  file:
+    path: /opt/zammad
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 确保外部网络 web-proxy 存在
+  docker_network:
+    name: web-proxy
+    state: present
+
+- name: 下发 Zammad 环境变量 (.env)
+  template:  # 👈 改成 template
+    src: "{{ playbook_dir }}/.local/zammad.env.j2"
+    dest: /opt/zammad/.env
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Zammad
+
+- name: 下发 Zammad Docker Compose 文件
+  template:  # 👈 这里由 copy 改成 template
+    src: docker-compose.yml.j2
+    dest: /opt/zammad/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Zammad
+
+# 第一次启动 Zammad 会非常慢，因为 init 容器需要跑数据库迁移
+- name: 启动 Zammad 容器栈
+  community.docker.docker_compose_v2:
+    project_src: /opt/zammad
+    state: present
+    pull: missing
+
+
+# ==========================================
+# 👇 新增：自动化配置 Zammad 存储引擎为 File
+# ==========================================
+- name: 等待 Zammad Rails 服务彻底启动就绪 (首次部署需等待数据库 Migration)
+  ansible.builtin.command: docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r "puts 'Ready'"
+  args:
+    chdir: /opt/zammad
+  register: zammad_ready
+  until: zammad_ready.rc == 0
+  retries: 60       # 尝试 60 次
+  delay: 15         # 每次间隔 15 秒 (总共愿意等 15 分钟)
+  changed_when: false
+  ignore_errors: no
+
+- name: 强行将 Zammad 附件存储模式改为 File System，并迁移存量数据
+  ansible.builtin.shell: |
+    docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r "
+    Setting.set('storage_provider', 'File'); 
+    Store::File.move('DB', 'File') if Store::File.where(provider: 'DB').exists?
+    "
+  args:
+    chdir: /opt/zammad
+  register: zammad_storage_fix
+  changed_when: false
+  when: zammad_ready.rc == 0
+
+- name: 打印存储修改结果
+  debug:
+    msg: "Zammad 存储模式已强制锁定为 File，杜绝数据库撑爆风险。"
+  when: zammad_ready.rc == 0
+# ==========================================
+# 👆 新增结束
+# ==========================================
+
+
+# ==========================================
+# 自动化备份：解耦本地备份与云端同步
+# ==========================================
+- name: 下发 Zammad 解耦版备份脚本
+  template:
+    src: zammad_sync.sh.j2
+    dest: /opt/zammad/zammad_sync.sh
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 设置定时任务 (每天早 06:00 触发 Zammad 本地备份)
+  ansible.builtin.cron:
+    name: "Zammad Local Backup"
+    minute: "0"
+    hour: "6"
+    job: "/opt/zammad/zammad_sync.sh local >> /var/log/zammad_backup_local.log 2>&1"
+
+- name: 设置定时任务 (每天晚 18:00 触发 Zammad 云端同步)
+  ansible.builtin.cron:
+    name: "Zammad Cloud Sync"
+    minute: "0"
+    hour: "18"
+    job: "/opt/zammad/zammad_sync.sh cloud >> /var/log/zammad_backup_cloud.log 2>&1"
+
+- name: 配置 Zammad 备份日志轮转 (包含两个日志)
+  copy:
+    dest: /etc/logrotate.d/zammad_sync
+    content: |
+      /var/log/zammad_backup_local.log
+      /var/log/zammad_backup_cloud.log {
+          daily
+          rotate 7
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+      }

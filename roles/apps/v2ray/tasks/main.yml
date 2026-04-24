@@ -1,0 +1,36 @@
+---
+- name: 创建 V2ray 工作目录
+  file:
+    path: /opt/v2ray
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 确保外部网络 web-proxy 存在
+  docker_network:
+    name: web-proxy
+    state: present
+
+- name: 下发 V2ray 配置文件 (config.json)
+  template:
+    src: config.json.j2
+    dest: /opt/v2ray/config.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart V2ray
+
+- name: 下发 V2ray Docker Compose 文件
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/v2ray/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart V2ray
+
+- name: 启动 V2ray 容器
+  community.docker.docker_compose_v2:
+    project_src: /opt/v2ray
+    state: present

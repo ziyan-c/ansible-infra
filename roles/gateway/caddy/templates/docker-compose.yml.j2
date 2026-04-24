@@ -1,0 +1,22 @@
+services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      # 直接挂载本目录下的 certs 文件夹
+      - ./certs:/etc/caddy/certs:ro
+      - ./data:/data
+      - ./config:/config
+      - ./site:/usr/share/caddy
+    networks:
+      - web-proxy
+
+networks:
+  web-proxy:
+    external: true

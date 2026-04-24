@@ -1,0 +1,65 @@
+---
+- name: 安装 Git (确保已安装)
+  apt:
+    name: git
+    state: present
+
+- name: 克隆 Mailcow 官方仓库 (master 分支)
+  git:
+    repo: https://github.com/mailcow/mailcow-dockerized
+    dest: /opt/mailcow-dockerized
+    # version: master
+    version: "{{ mailcow_version }}"  # 👈 这里会自动去 GitHub 找这个 Tag
+    update: yes
+    force: yes  # 👈 新增这一行：无视本地修改，强行与远端 master 保持一致
+
+- name: 下发预设的 mailcow.conf
+  template:  # 👈 必须用 template 模块才能解析变量！
+    src: "{{ playbook_dir }}/.local/mailcow.conf.j2"
+    dest: /opt/mailcow-dockerized/mailcow.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: 启动 Mailcow 容器栈 (可能需要拉取大量镜像，耗时较长)
+  community.docker.docker_compose_v2:
+    project_src: /opt/mailcow-dockerized
+    state: present
+    pull: always
+
+
+
+- name: 创建 Mailcow 本地备份存放目录
+  file:
+    path: /opt/mailcow_backups
+    state: directory
+    mode: '0777'  # 👈 修改这里：让所有容器都有写入权限
+
+- name: 下发 Mailcow 自动备份脚本
+  template:
+    src: mailcow_backup.sh.j2
+    dest: /opt/mailcow-dockerized/mailcow_backup.sh
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 设置定时任务 (每天凌晨 4 点和下午 16 点执行 Mailcow 备份)
+  ansible.builtin.cron:
+    name: "Mailcow Full Backup"
+    minute: "0"
+    hour: "4,16"  # 👈 必须是英文逗号！
+    job: "/opt/mailcow-dockerized/mailcow_backup.sh >> /var/log/mailcow_backup.log 2>&1"
+
+- name: 配置 Mailcow 备份日志轮转
+  copy:
+    dest: /etc/logrotate.d/mailcow_backup
+    content: |
+      /var/log/mailcow_backup.log {
+          daily
+          rotate 7
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+      }

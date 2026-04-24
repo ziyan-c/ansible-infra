@@ -1,0 +1,15 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # 👇 使用通用变量名，Ansible 会自动去 inventory 里找这台机器对应的 token
+      - TUNNEL_TOKEN={{ cf_tunnel_token }}
+    networks:
+      - web-proxy
+
+networks:
+  web-proxy:
+    external: true

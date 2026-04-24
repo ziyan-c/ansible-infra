@@ -1,0 +1,74 @@
+#!/bin/bash
+# ==========================================
+# PostgreSQL 自动化备份脚本 (数据库 + 物理文件)
+# ==========================================
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# --- 1. 配置变量 ---
+ROLE_NAME="postgres"
+CONTAINER_NAME="postgres"
+BACKUP_DIR="/opt/${ROLE_NAME}_backups"
+GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}" 
+
+# 👇 引入 Ansible 全局变量
+KEEP_LOCAL={{ backup_keep_local }}
+KEEP_REMOTE={{ backup_keep_remote }}
+
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# 备份文件名
+SQL_BACKUP="pg_sql_$TIMESTAMP.sql.gz"
+DATA_BACKUP="pg_custom_data_$TIMESTAMP.tar.gz"
+
+DB_USER="{{ pg_user }}"
+DB_PASS="{{ pg_admin_password | default(pg_password) }}"
+CUSTOM_DATA_DIR="{{ pg_custom_dir }}"
+
+# --- 2. 执行全库 SQL 备份 ---
+mkdir -p "$BACKUP_DIR"
+echo "[$TIMESTAMP] 正在导出数据库 SQL..."
+docker exec -i -e PGPASSWORD="$DB_PASS" "$CONTAINER_NAME" \
+    pg_dumpall -U "$DB_USER" | gzip > "$BACKUP_DIR/$SQL_BACKUP"
+
+# --- 3. 执行 Custom Data 文件夹备份 (新增) ---
+if [ -d "$CUSTOM_DATA_DIR" ]; then
+    echo "[$TIMESTAMP] 正在打包自定义文件夹 ($CUSTOM_DATA_DIR)..."
+    # 使用 -C 切换目录防止 tar 包里出现多层深路径
+    tar -czf "$BACKUP_DIR/$DATA_BACKUP" -C "$(dirname "$CUSTOM_DATA_DIR")" "$(basename "$CUSTOM_DATA_DIR")"
+else
+    echo "[$TIMESTAMP] 跳过文件夹备份，路径不存在: $CUSTOM_DATA_DIR"
+fi
+
+# --- 4. 检查结果并上传 ---
+if [ -s "$BACKUP_DIR/$SQL_BACKUP" ]; then
+    echo "[$TIMESTAMP] 备份生成成功，正在同步至云端..."
+    rclone copy "$BACKUP_DIR/" "$GDRIVE_REMOTE" --include "pg_*_$TIMESTAMP.*"
+else
+    echo "[$TIMESTAMP] 🚨 SQL 备份失败，中止流程！"
+    exit 1
+fi
+
+# --- 5. 清理本地与远端旧备份 (分片清理，防止字母排序灾难) ---
+
+# 1. 本地清理 (严格分开)
+ls -1t "$BACKUP_DIR"/pg_sql_*.sql.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -I {} rm -f -- "{}"
+ls -1t "$BACKUP_DIR"/pg_custom_data_*.tar.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -I {} rm -f -- "{}"
+
+# 2. 远端清理 SQL 备份
+rclone lsf "$GDRIVE_REMOTE" --files-only | grep '^pg_sql_' | sort | head -n -$KEEP_REMOTE | while read -r filename; do
+    if [ -n "$filename" ]; then
+        rclone deletefile "$GDRIVE_REMOTE/$filename"
+        echo "[$TIMESTAMP] 已清理远端 SQL 备份: $filename"
+    fi
+done
+
+# 3. 远端清理 Custom Data 备份
+rclone lsf "$GDRIVE_REMOTE" --files-only | grep '^pg_custom_data_' | sort | head -n -$KEEP_REMOTE | while read -r filename; do
+    if [ -n "$filename" ]; then
+        rclone deletefile "$GDRIVE_REMOTE/$filename"
+        echo "[$TIMESTAMP] 已清理远端数据备份: $filename"
+    fi
+done
+
+echo "[$TIMESTAMP] Postgres 全量灾备完成。"

@@ -1,0 +1,52 @@
+---
+# ==========================================
+# 1. 安装 Docker 及其组件
+# ==========================================
+- name: 安装 Docker.io 和 Docker Compose
+  apt:
+    name:
+      - docker.io
+      - docker-compose    
+      - python3-docker     # 👈 确保 Ansible 能操控 Docker
+    state: present
+    update_cache: yes
+
+# ==========================================
+# 2. 配置 Docker 全局日志限制
+# ==========================================
+- name: 确保 /etc/docker 目录存在
+  file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: 下发 Docker 守护进程配置文件 (daemon.json)
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Docker
+
+# ==========================================
+# 3. 服务管理
+# ==========================================
+- name: 确保 Docker 服务已启动并设置开机自启
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: 确保 Docker 能够通过 Systemd 重载配置
+  systemd:
+    daemon_reload: yes
+
+
+- name: 创建全局公共网关网络 (web-proxy)
+  docker_network:
+    name: web-proxy
+    driver: bridge
+    state: present

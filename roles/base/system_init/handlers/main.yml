@@ -1,0 +1,11 @@
+---
+- name: Restart SSH
+  systemd:
+    name: ssh
+    state: restarted
+  ignore_errors: yes # 兼容不同的 sshd 命名规则
+
+- name: Restart Journald
+  systemd:
+    name: systemd-journald
+    state: restarted

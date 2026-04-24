@@ -1,0 +1,103 @@
+---
+- name: 安装 WireGuard 及其依赖
+  apt:
+    name:
+      - wireguard
+      - wireguard-tools
+      - iptables
+    state: present
+    update_cache: yes
+
+- name: 开启内核 IPv4 转发 (为了让客户端能全局代理上网)
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: 确保 WireGuard 配置目录存在
+  file:
+    path: /etc/wireguard
+    state: directory
+    mode: '0700'
+
+- name: 动态生成 WireGuard 配置文件 (wg0.conf)
+  template:
+    src: wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+    mode: '0600'
+  notify: Restart WireGuard
+
+- name: 启动并设置开机自启 wg-quick@wg0 服务
+  systemd:
+    name: wg-quick@wg0
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+
+- name: 在防火墙中放行 WireGuard 端口 (UDP)
+  ansible.posix.firewalld:
+    port: "{{ wg_port }}/udp"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  #ignore_errors: yes # 防止没装 firewalld 时报错
+
+# 👇 新增这个任务：信任 wg0 内网的所有流量
+- name: 将 WireGuard 虚拟网卡加入 trusted 区域
+  ansible.posix.firewalld:
+    zone: trusted
+    interface: wg0
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+# ==========================================
+# 自动化导出客户端配置与二维码
+# ==========================================
+
+- name: 检查本地是否安装了 qrencode
+  delegate_to: localhost
+  become: no
+  command: which qrencode
+  register: qrencode_check
+  failed_when: false
+  changed_when: false
+  ignore_errors: yes
+
+- name: 创建本地客户端配置存放目录
+  delegate_to: localhost
+  become: no
+  run_once: true
+  file:
+    path: "{{ playbook_dir }}/.local/wg-clients/{{ item.key }}"  # 👈 修改这里
+    state: directory
+    mode: '0755'
+  loop: "{{ wg_clients | dict2items }}"
+
+- name: 为每个客户端生成对应所有服务器的配置文件 (.conf)
+  delegate_to: localhost
+  become: no
+  run_once: true
+  template:
+    src: client_config.conf.j2
+    dest: "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"  # 👈 修改这里
+    mode: '0600'
+  loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"
+
+- name: 为移动端生成对应所有服务器的二维码 (.png)
+  delegate_to: localhost
+  become: no
+  run_once: true
+  shell: >
+    qrencode -t png 
+    -o "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png" 
+    < "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"
+  when: 
+    - qrencode_check is defined
+    - qrencode_check.rc | default(1) == 0
+  loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"

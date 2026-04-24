@@ -1,0 +1,267 @@
+---
+# ==========================================
+# 1. 基础系统更新与软件安装
+# ==========================================
+- name: 更新 APT 缓存并升级系统 (dist-upgrade)
+  apt:
+    update_cache: yes
+    upgrade: dist
+
+- name: 安装基础工具包 (替换原脚本 install_pkgs)
+  apt:
+    name:
+      - ca-certificates
+      - curl
+      - vim
+      - screen
+      - traceroute
+      - net-tools
+      - nmap
+      - coreutils
+      - gnupg
+      - lsb-release
+      - openssl
+      - git
+      - jq
+      - bc
+      - mariadb-client
+      - iproute2
+      - firewalld
+      - rsync 
+      - postgresql-client
+    state: present
+
+- name: 停用并禁用 UFW 和 AppArmor (避免与 Firewalld 冲突)
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop:
+    - ufw
+    - apparmor
+  ignore_errors: yes # 如果没安装则忽略报错
+
+
+- name: 统一配置系统时区
+  timezone:
+    name: "{{ system_timezone }}"
+  # 这个模块会自动处理 /etc/localtime 和 /etc/timezone
+
+# ==========================================
+# 2. 网络与内核优化 (Hostname & BBR)
+# ==========================================
+- name: 设置静态主机名
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: 更新 /etc/hosts 将 127.0.1.1 指向本机域名
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^\s*127\.0\.1\.1\s+'
+    line: "127.0.1.1\t{{ inventory_hostname }}"
+
+- name: 开启 BBR 拥塞控制与 ES 内存限制优化
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  loop:
+    - { key: 'net.core.default_qdisc', value: 'fq' }
+    - { key: 'net.ipv4.tcp_congestion_control', value: 'bbr' }
+    - { key: 'vm.max_map_count', value: '524288' }  # 👈 新增这一行，专为 Elasticsearch 续命
+
+# ==========================================
+# 3. 安全配置 (SSH & Firewalld)
+# ==========================================
+- name: 植入个人 SSH 公钥 (exclusive 模式会覆盖删除其他不明公钥)
+  ansible.posix.authorized_key:
+    user: root
+    state: present
+    key: "{{ ssh_public_key_personal }}"
+    exclusive: yes
+
+- name: 下发 SSHD 自定义安全配置 (Drop-in)
+  copy:
+    dest: /etc/ssh/sshd_config.d/00-init-local.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # Managed by Ansible
+      PasswordAuthentication {{ ssh_password_auth }}
+      PermitRootLogin {{ ssh_permit_root }}
+      PubkeyAuthentication yes
+      ChallengeResponseAuthentication no
+      KbdInteractiveAuthentication no
+      UsePAM yes
+  notify: Restart SSH
+
+- name: 启动 Firewalld 并放行 SSH
+  ansible.posix.firewalld:
+    service: ssh
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: 将主网卡绑定至 public 区域
+  ansible.posix.firewalld:
+    interface: "{{ ansible_default_ipv4.interface }}"
+    zone: public
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+# ==========================================
+# 4. 系统资源管理 (Swap & Journald)
+# ==========================================
+- name: 检查是否已存在 Swap 文件
+  stat:
+    path: /var/local/my_swapfile
+  register: swapfile_check
+
+- name: 创建 Swap 文件 ({{ swapfile_size_mb }}MB)
+  command: dd if=/dev/zero of=/var/local/my_swapfile bs=1M count={{ swapfile_size_mb }}
+  when: not swapfile_check.stat.exists
+
+- name: 设置 Swap 文件权限
+  file:
+    path: /var/local/my_swapfile
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: 格式化 Swap 文件
+  command: mkswap /var/local/my_swapfile
+  when: not swapfile_check.stat.exists
+
+- name: 清理 /etc/fstab 中可能存在的旧 Swap 格式
+  mount:
+    name: swap # 针对那个错误的挂载点
+    src: /var/local/my_swapfile
+    state: absent # 彻底删除匹配这一行的记录
+
+- name: 确保正确的 Swap 配置写入 /etc/fstab
+  mount:
+    name: none
+    src: /var/local/my_swapfile
+    fstype: swap
+    opts: sw
+    passno: 0
+    dump: 0
+    state: present # 这会确保有且仅有一行正确的配置
+
+- name: 检查系统当前是否已经激活了该 Swap
+  command: swapon --show
+  register: swap_status
+  changed_when: false  # 👈 这是一个纯查询动作，不标记为 changed
+
+- name: 立即手动激活 Swap (仅在未激活时执行)
+  command: swapon /var/local/my_swapfile
+  when: "'/var/local/my_swapfile' not in swap_status.stdout"  # 👈 幂等性：只有在当前状态没查到它时，才执行激活
+
+# 1. 先确保文件夹存在
+- name: 确保 journald.conf.d 目录存在
+  file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    mode: '0755'
+
+# 2. 再进行文件配置
+- name: 配置 Journald 日志大小限制为 500M
+  copy:
+    dest: /etc/systemd/journald.conf.d/99-size.conf
+    content: |
+      [Journal]
+      SystemMaxUse=500M
+    mode: '0644'
+  notify: Restart Journald  # 别忘了配置一个 handler 来重启日志服务
+
+# ==========================================
+# 5. 终端体验优化 (Bash Aliases)
+# ==========================================
+- name: 注入符合 Debian (GNU ls) 习惯的别名
+  ansible.builtin.blockinfile:
+    path: /root/.bashrc
+    marker: "# {mark} ANSIBLE MANAGED ALIASES"
+    block: |
+      # 开启颜色支持（GNU ls 标准做法）
+      if [ -x /usr/bin/dircolors ]; then
+          test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+          alias ls='ls --color=auto'
+          alias dir='dir --color=auto'
+          alias vdir='vdir --color=auto'
+
+          alias grep='grep --color=auto'
+          alias fgrep='fgrep --color=auto'
+          alias egrep='egrep --color=auto'
+      fi
+
+      # 常用别名
+      alias ll='ls -lvh'         # -v 会按数字顺序自然排序，-h 是易读大小
+      alias la='ls -lva'
+      alias l='ls -CF'           # 快速查看文件夹
+
+- name: 检查是否已生成过 Root 密码
+  stat:
+    path: /root/.new-root-password
+  register: root_pw_file
+
+- name: 随机生成 Root 密码并保存
+  when: 
+    - rotate_root_password | default(false) | bool
+    - not root_pw_file.stat.exists
+  block:
+    - name: 生成 42 字符随机密码
+      set_fact:
+        new_root_password: "{{ lookup('password', '/dev/null length=42 chars=ascii_letters,digits') }}"
+    
+    - name: 更新 root 密码
+      user:
+        name: root
+        password: "{{ new_root_password | password_hash('sha512') }}"
+        
+    - name: 保存密码到文件
+      copy:
+        dest: /root/.new-root-password
+        content: "{{ new_root_password }}\n"
+        mode: '0600'
+
+# ==========================================
+# 6. 配置内网 Host 解析
+# ==========================================
+- name: 动态注入 WireGuard 内网节点到 /etc/hosts
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED WIREGUARD HOSTS"
+    block: |
+      {% for name, srv in wg_servers.items() %}
+      {{ wg_network_prefix }}.{{ srv.ip_suffix }}    {{ srv.hostname.split('.')[0] }} 
+      {% endfor %}
+
+
+# ==========================================
+# 7. 全局基础设施：安装与配置 Rclone
+# ==========================================
+- name: 安装 Rclone (使用官方脚本以获取最新版)
+  shell: curl https://rclone.org/install.sh | sudo bash
+  args:
+    creates: /usr/bin/rclone  # 👈 幂等性：只有在 rclone 没安装时才执行这个脚本
+
+- name: 确保 Rclone 配置目录存在
+  file:
+    path: /root/.config/rclone
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: 注入 Rclone 网盘授权配置
+  copy:
+    content: "{{ rclone_config_content }}"
+    dest: /root/.config/rclone/rclone.conf
+    owner: root
+    group: root
+    mode: '0600'
+    force: no  # 👈 极其关键！禁止覆盖！让 Rclone 自己维护后续的 Token 刷新！

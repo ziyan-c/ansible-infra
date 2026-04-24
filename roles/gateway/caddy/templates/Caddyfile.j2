@@ -1,0 +1,71 @@
+# ==========================================
+# 动态判定：如果当前机器被分配为 Neo/V2ray 节点，则渲染主站代理
+# ==========================================
+{% if inventory_hostname == deploy_node_neo_v2ray %}
+
+{{ base_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+    root * /usr/share/caddy
+    file_server
+
+    header {
+        Access-Control-Allow-Origin "https://{{ base_domain }}"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Origin, Content-Type, Accept, Authorization"
+        Access-Control-Max-Age "3600"
+    }
+
+    handle /api/rag* {
+        uri strip_prefix /api/rag
+        reverse_proxy neo-backend:8000
+    }
+
+    handle /api/llm* {
+        uri strip_prefix /api/llm
+        reverse_proxy neo-backend:8080
+    }
+
+    handle_path /sharing-protected* {
+        root * /usr/share/caddy/sharing-protected
+        file_server browse
+        basic_auth {
+            {{ caddy_basic_auth_hash }}
+        }
+    }
+}
+
+{{ v2ray_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+    root * /usr/share/caddy
+    file_server
+
+    handle /v2ray {
+        reverse_proxy v2ray-server:10010 {
+            header_up X-Real-IP {header.CF-Connecting-IP}
+            header_up X-Forwarded-For {header.CF-Connecting-IP}
+        }
+    }
+}
+{% endif %}
+
+# ==========================================
+# 动态判定：如果当前机器被分配为 Zammad 节点，则渲染工单代理
+# ==========================================
+{% if inventory_hostname == deploy_node_zammad %}
+
+support.{{ base_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+    root * /usr/share/caddy
+    file_server
+
+    reverse_proxy zammad-nginx:8080 {
+        header_up Origin {header.Origin}
+        header_up Host {host}
+        header_up X-Real-IP {header.CF-Connecting-IP}
+        header_up X-Forwarded-For {header.CF-Connecting-IP}
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-Port 443
+        header_up X-Forwarded-Ssl on
+    }
+}
+{% endif %}

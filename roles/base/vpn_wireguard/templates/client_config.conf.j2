@@ -1,0 +1,14 @@
+[Interface]
+# Client Name: {{ item[0].key }}
+PrivateKey = {{ item[0].value.priv | default('请在此处手动替换为客户端私钥') }}
+Address = {{ wg_network_prefix }}.{{ item[0].value.ip_suffix }}/24  # <-- ✅ 改成这样
+DNS = {{ wg_dns }}
+MTU = 1280
+
+[Peer]
+# Target Server: {{ item[1].key | upper }} ({{ item[1].value.hostname }})
+PublicKey = {{ item[1].value.pub }}
+Endpoint = {{ item[1].value.endpoint }}:{{ wg_port }}
+# 允许所有流量通过该服务器 (全局代理)
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25

@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e  # 👈 加上这行！以后只要 rsync 失败，脚本立刻自爆，Ansible 会立刻亮红灯报警！
+# =========================================================
+# 此脚本由 Ansible 管理。
+# 它被挂载在 Certbot 的 deploy hook 中，只有证书续签成功时才会触发。
+# =========================================================
+
+# 1. 路径定义
+SOURCE_DIR="/etc/letsencrypt/live/{{ base_domain }}/"
+DEST_DIR="{{ certbot_dest_dir }}"
+
+# 2. 动态获取边缘节点列表 (从 Ansible Inventory 解析)
+SERVERS=(
+{% for host in groups['edge_nodes'] %}
+  "root@{{ host }}"
+{% endfor %}
+)
+
+# 3. 循环同步
+for SERVER in "${SERVERS[@]}"; do
+    echo "[$(date)] 正在同步新证书到 $SERVER ..."
+    
+    # 确保远端存放目录存在
+    ssh -o StrictHostKeyChecking=no "$SERVER" "mkdir -p $DEST_DIR"
+
+    # 使用 rsync 推送 (解析软链接并覆盖)
+    rsync -avzL --delete \
+      --chown=999:999 \
+      --chmod=D755,F600 \
+      -e "ssh -o StrictHostKeyChecking=no" \
+      "$SOURCE_DIR" "$SERVER:$DEST_DIR"
+    
+    # 同步完成后，通知远端重启 Xray 等代理服务加载新证书
+    # 修改 sync_certs.sh.j2 的这一行：
+    ssh -o StrictHostKeyChecking=no "$SERVER" "docker restart xray || true; docker restart postgres || true"
+    
+    echo "[$(date)] $SERVER 证书同步并重载完成！"
+done
