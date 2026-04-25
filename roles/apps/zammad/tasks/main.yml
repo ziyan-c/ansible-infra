@@ -18,8 +18,9 @@
     dest: /opt/zammad/.env
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart Zammad
+  no_log: true
 
 - name: 下发 Zammad Docker Compose 文件
   template:  # 👈 这里由 copy 改成 template

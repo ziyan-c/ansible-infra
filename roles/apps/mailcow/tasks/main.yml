@@ -19,7 +19,8 @@
     dest: /opt/mailcow-dockerized/mailcow.conf
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
+  no_log: true
 
 - name: 启动 Mailcow 容器栈 (可能需要拉取大量镜像，耗时较长)
   community.docker.docker_compose_v2:

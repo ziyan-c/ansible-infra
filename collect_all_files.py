@@ -12,11 +12,13 @@ def merge_contents(output_filename="all_files.txt"):
     count = 0
     
     with output_path.open('w', encoding='utf-8') as outfile:
+        ignored_dirs = {'.git', '.local'}
+
         # 从项目根目录开始遍历所有文件
         for file_path in project_root.rglob('*'):
             
-            # 👇 核心过滤：跳过 .git 目录
-            if '.git' in file_path.parts:
+            # 跳过仓库元数据和私密变量目录，避免把密钥合并到调试输出里。
+            if any(part in ignored_dirs for part in file_path.parts):
                 continue
 
             # 忽略特定的二进制/图片文件后缀

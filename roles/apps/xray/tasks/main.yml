@@ -13,8 +13,9 @@
     dest: /opt/xray/config.json
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart Xray
+  no_log: true
 
 - name: 下发 Xray Docker Compose 文件
   template:

@@ -18,8 +18,9 @@
     dest: /opt/cloudflared/docker-compose.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart Cloudflared
+  no_log: true
 
 - name: 启动 Cloudflared 容器
   community.docker.docker_compose_v2:

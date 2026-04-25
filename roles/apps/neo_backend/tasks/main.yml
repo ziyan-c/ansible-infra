@@ -22,8 +22,9 @@
     dest: /opt/neo_backend/docker-compose.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart Neo-Backend
+  no_log: true
 
 # go-proxy 到目标服务器
 #       - "--chown=root:root"

@@ -18,8 +18,9 @@
     dest: /opt/v2ray/config.json
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart V2ray
+  no_log: true
 
 - name: 下发 V2ray Docker Compose 文件
   template:

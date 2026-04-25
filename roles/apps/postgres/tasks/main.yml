@@ -17,8 +17,9 @@
     dest: /opt/postgres/docker-compose.yml
     owner: root
     group: root
-    mode: '0644'
+    mode: '0600'
   notify: Restart Postgres
+  no_log: true
 
 - name: 启动 Postgres 容器
   community.docker.docker_compose_v2:
@@ -40,6 +41,7 @@
     owner: root
     group: root
     mode: '0700'
+  no_log: true
 
 - name: 设置定时任务 (每天两次全量备份 - 03:00 和 15:00)
   ansible.builtin.cron:

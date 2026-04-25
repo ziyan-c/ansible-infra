@@ -6,6 +6,7 @@
   apt:
     update_cache: yes
     upgrade: dist
+  when: system_dist_upgrade_enabled | bool
 
 - name: 安装基础工具包 (替换原脚本 install_pkgs)
   apt:
@@ -40,6 +41,7 @@
     - ufw
     - apparmor
   ignore_errors: yes # 如果没安装则忽略报错
+  when: system_disable_ufw_apparmor | bool
 
 
 - name: 统一配置系统时区
@@ -80,7 +82,7 @@
     user: root
     state: present
     key: "{{ ssh_public_key_personal }}"
-    exclusive: yes
+    exclusive: "{{ root_authorized_keys_exclusive | bool }}"
 
 - name: 下发 SSHD 自定义安全配置 (Drop-in)
   copy:
@@ -219,6 +221,7 @@
   when: 
     - rotate_root_password | default(false) | bool
     - not root_pw_file.stat.exists
+  no_log: true
   block:
     - name: 生成 42 字符随机密码
       set_fact:
@@ -272,3 +275,4 @@
     group: root
     mode: '0600'
     force: no  # 👈 极其关键！禁止覆盖！让 Rclone 自己维护后续的 Token 刷新！
+  no_log: true

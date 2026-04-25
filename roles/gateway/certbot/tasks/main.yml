@@ -50,6 +50,7 @@
     src: cloudflare.ini.j2
     dest: /root/.secrets/certbot/cloudflare.ini
     mode: '0600'
+  no_log: true
 
 # ==========================================
 # 3. 申请证书与自动化钩子

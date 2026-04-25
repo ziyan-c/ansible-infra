@@ -30,6 +30,7 @@
     group: root
     mode: '0600'
   notify: Restart WireGuard
+  no_log: true
 
 - name: 启动并设置开机自启 wg-quick@wg0 服务
   systemd:
@@ -87,6 +88,7 @@
     src: client_config.conf.j2
     dest: "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"  # 👈 修改这里
     mode: '0600'
+  no_log: true
   loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"
 
 - name: 为移动端生成对应所有服务器的二维码 (.png)
