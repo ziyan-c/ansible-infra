@@ -1,3 +1,5 @@
 # 忽略整个 .local 私密目录
 .local/
 
+# 忽略soft link的.local文件夹
+.local 
