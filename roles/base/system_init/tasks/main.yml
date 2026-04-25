@@ -45,7 +45,7 @@
 
 
 - name: 统一配置系统时区
-  timezone:
+  community.general.timezone:
     name: "{{ system_timezone }}"
   # 这个模块会自动处理 /etc/localtime 和 /etc/timezone
 

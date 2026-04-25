@@ -6,3 +6,10 @@
 
 # 可能的临时打包文件
 .local.tar.gz
+
+# Python / Ansible local noise
+__pycache__/
+*.py[cod]
+*.retry
+.ansible/
+.cache/

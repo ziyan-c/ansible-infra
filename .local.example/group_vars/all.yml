@@ -1,0 +1,83 @@
+---
+# Host-safety switches. Defaults in the role preserve single-owner VPS behavior;
+# these example overrides are intentionally cautious.
+system_dist_upgrade_enabled: false
+system_disable_ufw_apparmor: false
+root_authorized_keys_exclusive: false
+
+system_timezone: Etc/UTC
+ssh_public_key_personal: "ssh-ed25519 REPLACE_ME user@example"
+ssh_password_auth: "no"
+ssh_permit_root: "prohibit-password"
+swapfile_size_mb: 2048
+
+docker_log_max_size: "10m"
+docker_log_max_file: "3"
+
+base_domain: example.com
+v2ray_domain: v2ray.example.com
+certbot_email: admin@example.com
+certbot_dest_dir: /opt/shared-certs/example.com
+cf_api_token: "REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
+caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
+
+backup_keep_local: 7
+backup_keep_remote: 14
+
+deploy_node_neo_v2ray: vps-a.example.com
+deploy_node_zammad: vps-b.example.com
+deploy_node_postgres: vps-b.example.com
+
+wg_network_prefix: "10.66.0"
+wg_port: 51820
+wg_dns: "1.1.1.1"
+wg_servers:
+  vps_a:
+    hostname: vps-a.example.com
+    endpoint: vps-a.example.com
+    ip_suffix: 1
+    pub: "REPLACE_ME_WG_SERVER_A_PUBLIC_KEY"
+    priv: "REPLACE_ME_WG_SERVER_A_PRIVATE_KEY"
+  vps_b:
+    hostname: vps-b.example.com
+    endpoint: vps-b.example.com
+    ip_suffix: 2
+    pub: "REPLACE_ME_WG_SERVER_B_PUBLIC_KEY"
+    priv: "REPLACE_ME_WG_SERVER_B_PRIVATE_KEY"
+
+wg_clients:
+  phone:
+    ip_suffix: 101
+    pub: "REPLACE_ME_CLIENT_PUBLIC_KEY"
+    priv: "REPLACE_ME_CLIENT_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+
+rclone_config_content: |
+  [gdrive]
+  type = drive
+  scope = drive
+  token = REPLACE_ME_RCLONE_TOKEN_JSON
+
+pg_user: postgres
+pg_password: "REPLACE_ME_POSTGRES_PASSWORD"
+pg_admin_password: "REPLACE_ME_POSTGRES_ADMIN_PASSWORD"
+pg_db_name: app
+pg_data_dir: /opt/postgres/data
+pg_custom_dir: /opt/postgres/custom_data
+
+mailcow_version: "REPLACE_WITH_MAILCOW_GIT_TAG"
+
+v2ray_client_id: "00000000-0000-0000-0000-000000000000"
+
+xray_client_id: "00000000-0000-0000-0000-000000000000"
+xray_reality_dest: "www.example.com:443"
+xray_reality_server_names:
+  - www.example.com
+xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
+xray_reality_short_ids:
+  - "0123456789abcdef"
+
+neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
+ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
+neo_ssh_user: remote-user
+neo_ssh_host: compute.example.com
+neo_ssh_port: 22

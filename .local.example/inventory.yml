@@ -1,0 +1,58 @@
+---
+all:
+  hosts:
+    vps-a.example.com:
+      ansible_host: 203.0.113.10
+      ansible_user: root
+    vps-b.example.com:
+      ansible_host: 203.0.113.11
+      ansible_user: root
+
+  children:
+    init_nodes:
+      hosts:
+        vps-a.example.com:
+        vps-b.example.com:
+
+    vpn_mesh_nodes:
+      hosts:
+        vps-a.example.com:
+        vps-b.example.com:
+
+    cert_master_nodes:
+      hosts:
+        vps-a.example.com:
+
+    edge_nodes:
+      hosts:
+        vps-a.example.com:
+        vps-b.example.com:
+
+    gateway_nodes:
+      hosts:
+        vps-a.example.com:
+        vps-b.example.com:
+
+    v2ray_nodes:
+      hosts:
+        vps-a.example.com:
+
+    db_postgres_nodes:
+      hosts:
+        vps-b.example.com:
+
+    mail_nodes:
+      hosts:
+        vps-b.example.com:
+
+    zammad_nodes:
+      hosts:
+        vps-b.example.com:
+
+    tunnel_nodes:
+      hosts:
+        vps-b.example.com:
+
+    neo_backend_nodes:
+      hosts:
+        vps-a.example.com:

@@ -1,0 +1,16 @@
+---
+# Start strict enough to catch broken Ansible, but light enough for the current
+# personal-infra style. Raise this profile as the roles are cleaned up.
+profile: min
+offline: true
+
+exclude_paths:
+  - .git/
+  - .local/
+  - .local.example/
+
+warn_list:
+  - command-instead-of-shell
+  - no-changed-when
+  - risky-shell-pipe
+  - yaml[line-length]

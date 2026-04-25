@@ -12,9 +12,20 @@ Postgres, Mailcow, Zammad, V2Ray/Xray, and Cloudflared.
 - `roles/apps`: application stacks and backup jobs.
 - `.local/`: private inventory, vault password, host variables, certificates,
   and rendered client files. This path is intentionally git-ignored.
+- `.local.example/`: committed skeleton showing the expected private-state
+  shape without real secrets.
 - `.local_encrypted.vault`: encrypted snapshot of `.local` for recovery.
 
 ## Bootstrap
+
+Create private state from the example skeleton:
+
+```bash
+cp -R .local.example .local
+chmod 600 .local/vault_password
+```
+
+Then replace every `REPLACE_ME` placeholder under `.local/` with real values.
 
 Install the required Ansible collections:
 
@@ -41,6 +52,16 @@ Check syntax without touching hosts:
 ```bash
 ansible-playbook site.yml --syntax-check
 ```
+
+Run the lightweight lint profile:
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+ansible-lint site.yml
+```
+
+The current lint profile starts at `min` in `.ansible-lint` so it can be adopted
+without turning the existing personal-infra style into a wall of noise.
 
 Run everything:
 
