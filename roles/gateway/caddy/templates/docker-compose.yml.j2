@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: caddy:latest
+    image: "{{ caddy_image }}"
     container_name: caddy
     restart: unless-stopped
     ports:

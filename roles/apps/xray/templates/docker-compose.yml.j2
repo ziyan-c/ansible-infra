@@ -1,6 +1,6 @@
 services:
   xray:
-    image: ghcr.io/xtls/xray-core:latest
+    image: "{{ xray_image }}"
     container_name: xray
     restart: unless-stopped
     ports:

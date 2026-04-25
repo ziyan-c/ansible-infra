@@ -78,7 +78,7 @@
 # 👇 新增：优雅的跨节点等幂性检查逻辑
 - name: 检查边缘节点是否已存在证书
   ansible.builtin.stat:
-    path: "{{ certbot_dest_dir }}fullchain.pem"
+    path: "{{ certbot_dest_dir }}/fullchain.pem"
   delegate_to: "{{ item }}"
   loop: "{{ groups['edge_nodes'] }}"
   register: edge_cert_status

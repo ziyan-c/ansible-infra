@@ -23,7 +23,7 @@ services:
 
   # SSH 隧道打通算力节点
   ssh-tunnel:
-    image: alpine:latest
+    image: "{{ neo_ssh_tunnel_image }}"
     container_name: ssh-tunnel
     restart: unless-stopped 
     command: 

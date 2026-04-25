@@ -8,7 +8,7 @@ x-shared:
   zammad-service: &zammad-service
     # 👇 神来之笔：强行让所有 Zammad 容器认为 db 的 IP 就是独立数据库节点的内网 IP
     extra_hosts:
-      - "db:{{ wg_network_prefix }}.{{ db_node.ip_suffix }}"
+      #- "db:{{ wg_network_prefix }}.{{ db_node.ip_suffix }}"
 
     environment: &zammad-environment
       MEMCACHE_SERVERS: ${MEMCACHE_SERVERS:-zammad-memcached:11211}

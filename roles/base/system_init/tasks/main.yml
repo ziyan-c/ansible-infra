@@ -98,6 +98,13 @@
       UsePAM yes
   notify: Restart SSH
 
+- name: 启动并启用 Firewalld
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+
+
 - name: 启动 Firewalld 并放行 SSH
   ansible.posix.firewalld:
     service: ssh

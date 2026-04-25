@@ -1,6 +1,6 @@
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: "{{ cloudflared_image }}"
     container_name: cloudflared-tunnel
     restart: unless-stopped
     command: tunnel --no-autoupdate run

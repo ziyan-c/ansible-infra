@@ -1,0 +1,2 @@
+---
+cloudflared_image: "cloudflare/cloudflared:2026.3.0"

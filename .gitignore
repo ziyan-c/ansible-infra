@@ -3,3 +3,6 @@
 
 # 忽略soft link的.local文件夹
 .local 
+
+# 可能的临时打包文件
+.local.tar.gz

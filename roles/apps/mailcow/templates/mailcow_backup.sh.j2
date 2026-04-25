@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 # ==========================================
 # Mailcow 自动化全量备份脚本
 # ==========================================
@@ -19,6 +20,29 @@ KEEP_REMOTE={{ backup_keep_remote }}
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 TAR_FILE="mailcow_backup_$TIMESTAMP.tar.gz"
 
+cleanup_local_backups() {
+    find "$BACKUP_ROOT" -maxdepth 1 -type f -name 'mailcow_backup_*.tar.gz' -printf '%T@ %p\n' \
+        | sort -rn \
+        | tail -n +$((KEEP_LOCAL + 1)) \
+        | cut -d' ' -f2- \
+        | while IFS= read -r filename; do
+            [ -n "$filename" ] && rm -f -- "$filename"
+        done
+}
+
+cleanup_remote_backups() {
+    rclone lsf "$GDRIVE_REMOTE" --files-only \
+        | awk '/^mailcow_backup_/ { print }' \
+        | sort \
+        | head -n -"${KEEP_REMOTE}" \
+        | while IFS= read -r filename; do
+            if [ -n "$filename" ]; then
+                rclone deletefile "$GDRIVE_REMOTE/$filename"
+                echo "[$TIMESTAMP] 已清理远端备份: $filename"
+            fi
+        done
+}
+
 # --- 2. 执行官方备份 ---
 mkdir -p "$BACKUP_ROOT"
 echo "[$TIMESTAMP] 开始执行 Mailcow 官方备份脚本..."
@@ -35,7 +59,10 @@ if ! ./helper-scripts/backup_and_restore.sh backup all; then
 fi
 
 # --- 3. 压缩打包 ---
-LATEST_BACKUP_DIR=$(ls -1td "$BACKUP_ROOT"/mailcow-* 2>/dev/null | head -n 1)
+LATEST_BACKUP_DIR=$(find "$BACKUP_ROOT" -maxdepth 1 -type d -name 'mailcow-*' -printf '%T@ %p\n' \
+    | sort -rn \
+    | head -n 1 \
+    | cut -d' ' -f2-)
 
 if [ -n "$LATEST_BACKUP_DIR" ] && [ -d "$LATEST_BACKUP_DIR" ]; then
     echo "[$TIMESTAMP] 备份成功，正在压缩: $LATEST_BACKUP_DIR"
@@ -53,14 +80,9 @@ echo "[$TIMESTAMP] 正在上传至 Google Drive..."
 rclone copy "$BACKUP_ROOT/$TAR_FILE" "$GDRIVE_REMOTE"
 
 # --- 5. 清理本地旧备份 ---
-ls -1t "$BACKUP_ROOT"/mailcow_backup_*.tar.gz 2>/dev/null | tail -n +$((KEEP_LOCAL + 1)) | xargs -I {} rm -f -- "{}"
+cleanup_local_backups
 
 # --- 6. 清理远端旧备份 ---
-rclone lsf "$GDRIVE_REMOTE" --files-only | grep '^mailcow_backup_' | sort | head -n -$KEEP_REMOTE | while read -r filename; do
-    if [ -n "$filename" ]; then
-        rclone deletefile "$GDRIVE_REMOTE/$filename"
-        echo "[$TIMESTAMP] 已清理远端备份: $filename"
-    fi
-done
+cleanup_remote_backups
 
 echo "[$TIMESTAMP] Mailcow 备份与清理流程结束。"
