@@ -1,6 +1,5 @@
 ---
-# Defaults preserve the current single-owner VPS behavior.
-# Override these in private inventory/group vars for shared or cautious hosts.
+# Defaults keep high-impact host changes explicit and cautious.
 system_dist_upgrade_enabled: true
 system_disable_ufw_apparmor: true
-root_authorized_keys_exclusive: true
+root_authorized_keys_exclusive: false

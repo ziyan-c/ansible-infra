@@ -35,7 +35,7 @@
   no_log: true
 
 - name: 确保外部网络 web-proxy 存在 (用于与 V2ray/Neo 通信)
-  docker_network:
+  community.docker.docker_network:
     name: web-proxy
     state: present
 

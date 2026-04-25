@@ -69,7 +69,7 @@
 
 
 - name: 创建全局公共网关网络 (web-proxy)
-  docker_network:
+  community.docker.docker_network:
     name: web-proxy
     driver: bridge
     state: present

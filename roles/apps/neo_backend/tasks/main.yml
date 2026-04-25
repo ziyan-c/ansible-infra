@@ -12,7 +12,7 @@
 # 例如使用 copy 或 synchronize 模块。
 
 - name: 确保外部网络 web-proxy 存在
-  docker_network:
+  community.docker.docker_network:
     name: web-proxy
     state: present
 

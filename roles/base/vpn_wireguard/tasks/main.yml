@@ -9,7 +9,7 @@
     update_cache: yes
 
 - name: 开启内核 IPv4 转发 (为了让客户端能全局代理上网)
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: '1'
     sysctl_set: yes

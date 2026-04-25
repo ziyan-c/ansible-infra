@@ -10,9 +10,9 @@ services:
       - TARGET_HOST=ssh-tunnel 
     # 👇 把内网解析直接塞进容器里
     extra_hosts:
-      {% for name, srv in wg_servers.items() %}
+{% for name, srv in wg_servers.items() %}
       - "{{ srv.hostname.split('.')[0] }}:{{ wg_network_prefix }}.{{ srv.ip_suffix }}"
-      {% endfor %}
+{% endfor %}
     networks:
       - web-proxy
     # expose 仅仅向 web-proxy 网络内的其他容器（比如 Caddy）暴露端口，外网绝对无法直接访问！

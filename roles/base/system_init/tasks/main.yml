@@ -45,10 +45,15 @@
   when: system_disable_ufw_apparmor | bool
 
 
+- name: 查询当前系统时区
+  ansible.builtin.command: timedatectl show --property=Timezone --value
+  register: current_timezone
+  changed_when: false
+
 - name: 统一配置系统时区
-  community.general.timezone:
-    name: "{{ system_timezone }}"
-  # 这个模块会自动处理 /etc/localtime 和 /etc/timezone
+  ansible.builtin.command: "timedatectl set-timezone {{ system_timezone }}"
+  when: current_timezone.stdout != system_timezone
+  changed_when: true
 
 # ==========================================
 # 2. 网络与内核优化 (Hostname & BBR)
@@ -64,7 +69,7 @@
     line: "127.0.1.1\t{{ inventory_hostname }}"
 
 - name: 开启 BBR 拥塞控制与 ES 内存限制优化
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value }}"
     sysctl_set: yes
@@ -78,7 +83,7 @@
 # ==========================================
 # 3. 安全配置 (SSH & Firewalld)
 # ==========================================
-- name: 植入个人 SSH 公钥 (exclusive 模式会覆盖删除其他不明公钥)
+- name: 植入个人 SSH 公钥
   ansible.posix.authorized_key:
     user: root
     state: present
