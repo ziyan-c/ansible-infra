@@ -255,10 +255,10 @@
 # ==========================================
 # 7. 全局基础设施：安装与配置 Rclone
 # ==========================================
-- name: 安装 Rclone (使用官方脚本以获取最新版)
-  shell: curl https://rclone.org/install.sh | sudo bash
-  args:
-    creates: /usr/bin/rclone  # 👈 幂等性：只有在 rclone 没安装时才执行这个脚本
+- name: 安装 Rclone (使用系统软件源)
+  apt:
+    name: rclone
+    state: present
 
 - name: 确保 Rclone 配置目录存在
   file:
