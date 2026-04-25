@@ -6,7 +6,7 @@ set -e  # 👈 加上这行！以后只要 rsync 失败，脚本立刻自爆，A
 # =========================================================
 
 # 1. 路径定义
-SOURCE_DIR="/etc/letsencrypt/live/{{ base_domain }}/"
+SOURCE_DIR="{{ certbot_source_dir | default('/etc/letsencrypt/live/' ~ base_domain ~ '/') }}"
 DEST_DIR="{{ certbot_dest_dir }}"
 SSH_OPTS=(
   -o StrictHostKeyChecking=yes

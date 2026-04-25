@@ -10,14 +10,23 @@ ssh_public_key_personal: "ssh-ed25519 REPLACE_ME user@example"
 ssh_password_auth: "no"
 ssh_permit_root: "prohibit-password"
 swapfile_size_mb: 2048
+rotate_root_password: false
 
 docker_log_max_size: "10m"
 docker_log_max_file: "3"
+
+caddy_image: "caddy:2.11.2"
+v2ray_image: "v2fly/v2fly-core:v5.41.0"
+xray_image: "ghcr.io/xtls/xray-core:25.8.3"
+pgvector_image: "ankane/pgvector:v0.5.1"
+cloudflared_image: "cloudflare/cloudflared:2026.3.0"
+neo_ssh_tunnel_image: "alpine:3.23.4"
 
 base_domain: example.com
 v2ray_domain: v2ray.example.com
 enable_neo_backend_routes: false
 certbot_email: admin@example.com
+certbot_source_dir: /etc/letsencrypt/live/example.com/
 certbot_dest_dir: /opt/shared-certs/example.com
 cf_api_token: "REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
 caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
@@ -28,8 +37,11 @@ backup_keep_remote: 14
 deploy_node_neo_v2ray: vps-a.example.com
 deploy_node_zammad: vps-b.example.com
 deploy_node_postgres: vps-b.example.com
+deploy_node_mailcow: vps-b.example.com
 
+wg_network_cidr: "10.66.0.0/24"
 wg_network_prefix: "10.66.0"
+docker_proxy_cidr: "172.18.0.0/16"
 wg_port: 51820
 wg_dns: "1.1.1.1"
 wg_servers:
