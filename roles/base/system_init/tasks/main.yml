@@ -22,6 +22,7 @@
       - gnupg
       - lsb-release
       - openssl
+      - openssh-client
       - git
       - jq
       - bc

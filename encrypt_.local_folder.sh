@@ -3,6 +3,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")" || exit 1
 
+export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-local}"
+export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-remote}"
+mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP"
+
 echo "📦 正在打包并加密 .local 文件夹..."
 
 LOCAL_DIR=".local"

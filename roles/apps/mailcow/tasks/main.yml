@@ -34,7 +34,9 @@
   file:
     path: /opt/mailcow_backups
     state: directory
-    mode: '0777'  # 👈 修改这里：让所有容器都有写入权限
+    owner: root
+    group: root
+    mode: '0700'
 
 - name: 下发 Mailcow 自动备份脚本
   template:

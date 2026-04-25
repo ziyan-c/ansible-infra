@@ -77,7 +77,7 @@
   file:
     path: "{{ playbook_dir }}/.local/wg-clients/{{ item.key }}"  # 👈 修改这里
     state: directory
-    mode: '0755'
+    mode: '0700'
   loop: "{{ wg_clients | dict2items }}"
 
 - name: 为每个客户端生成对应所有服务器的配置文件 (.conf)
@@ -96,10 +96,24 @@
   become: no
   run_once: true
   shell: >
-    qrencode -t png 
+    umask 077 &&
+    qrencode -t png
     -o "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png" 
     < "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"
   when: 
+    - qrencode_check is defined
+    - qrencode_check.rc | default(1) == 0
+  loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"
+
+- name: 收紧客户端二维码文件权限
+  delegate_to: localhost
+  become: no
+  run_once: true
+  file:
+    path: "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png"
+    mode: '0600'
+  no_log: true
+  when:
     - qrencode_check is defined
     - qrencode_check.rc | default(1) == 0
   loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"

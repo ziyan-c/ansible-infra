@@ -15,6 +15,7 @@
         Access-Control-Max-Age "3600"
     }
 
+{% if enable_neo_backend_routes | default(false) | bool %}
     handle /api/rag* {
         uri strip_prefix /api/rag
         reverse_proxy neo-backend:8000
@@ -24,6 +25,7 @@
         uri strip_prefix /api/llm
         reverse_proxy neo-backend:8080
     }
+{% endif %}
 
     handle_path /sharing-protected* {
         root * /usr/share/caddy/sharing-protected

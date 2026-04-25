@@ -1,2 +1,3 @@
 ---
 caddy_image: "caddy:2.11.2"
+enable_neo_backend_routes: false

@@ -27,6 +27,20 @@
   loop: "{{ groups['edge_nodes'] }}"
   # 这个循环非常魔法：它会让主节点跨越去操作所有边缘节点
 
+- name: 收集边缘节点 SSH 主机公钥
+  command: "ssh-keyscan -T 10 -t ed25519 {{ item }}"
+  register: edge_host_key_scans
+  changed_when: false
+  failed_when: edge_host_key_scans.rc != 0 or edge_host_key_scans.stdout | length == 0
+  loop: "{{ groups['edge_nodes'] }}"
+
+- name: 固定边缘节点 SSH 主机公钥到 cert master
+  ansible.builtin.known_hosts:
+    path: /root/.ssh/known_hosts
+    name: "{{ item.item }}"
+    key: "{{ item.stdout }}"
+  loop: "{{ edge_host_key_scans.results }}"
+
 # ==========================================
 # 2. 安装 Certbot 与 Cloudflare 插件
 # ==========================================

@@ -37,6 +37,10 @@ all:
       hosts:
         vps-a.example.com:
 
+    xray_nodes:
+      hosts:
+        vps-a.example.com:
+
     db_postgres_nodes:
       hosts:
         vps-b.example.com:

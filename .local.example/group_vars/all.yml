@@ -16,6 +16,7 @@ docker_log_max_file: "3"
 
 base_domain: example.com
 v2ray_domain: v2ray.example.com
+enable_neo_backend_routes: false
 certbot_email: admin@example.com
 certbot_dest_dir: /opt/shared-certs/example.com
 cf_api_token: "REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"

@@ -2,14 +2,37 @@
 # ==========================================
 # 1. 安装 Docker 及其组件
 # ==========================================
-- name: 安装 Docker.io 和 Docker Compose
+- name: 安装 Docker.io 和 Python Docker 绑定
   apt:
     name:
       - docker.io
-      - docker-compose    
       - python3-docker     # 👈 确保 Ansible 能操控 Docker
     state: present
     update_cache: yes
+
+- name: 检查 Docker Compose v2 插件是否可用
+  command: docker compose version
+  register: docker_compose_v2_check
+  changed_when: false
+  failed_when: false
+
+- name: 安装 Docker Compose v2 插件候选包
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - docker-compose-plugin
+    - docker-compose-v2
+  register: docker_compose_v2_package_attempts
+  failed_when: false
+  when: docker_compose_v2_check.rc != 0
+
+- name: 再次检查 Docker Compose v2 插件
+  command: docker compose version
+  register: docker_compose_v2_verify
+  changed_when: false
+  failed_when: docker_compose_v2_verify.rc != 0
+  when: docker_compose_v2_check.rc != 0
 
 # ==========================================
 # 2. 配置 Docker 全局日志限制

@@ -50,6 +50,13 @@
     - role: apps/v2ray
       tags: ['v2ray', 'apps']
 
+- name: 部署 Xray Reality 边缘节点
+  hosts: xray_nodes
+  become: yes
+  roles:
+    - role: apps/xray
+      tags: ['xray', 'apps']
+
 - name: 部署 AI 向量数据库
   hosts: db_postgres_nodes  # 👈 修复：直接使用 inventory 中定义好的组名
   become: yes
