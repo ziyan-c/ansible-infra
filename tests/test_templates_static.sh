@@ -19,13 +19,41 @@ TEST_RENDER_DIR="$render_dir" ansible-playbook \
 	-i .local.example/inventory.yml \
 	tests/render_config_templates.yml >/dev/null
 
+assert_contains() {
+	local file="$1"
+	local expected="$2"
+	grep -F "$expected" "$file" >/dev/null
+}
+
 if command -v jq >/dev/null 2>&1; then
 	while IFS= read -r config; do
 		jq -e . "$config" >/dev/null
 	done < <(find "$render_dir/json" -type f -name '*.json')
+
+	jq -e '.inbounds[0].streamSettings.wsSettings.path == "/v2ray"' \
+		"$render_dir/json/v2ray-config.json" >/dev/null
+	jq -e '.inbounds[0].streamSettings.security == "reality"' \
+		"$render_dir/json/xray-config.json" >/dev/null
+	jq -e '.inbounds[0].streamSettings.realitySettings.dest == "www.example.com:443"' \
+		"$render_dir/json/xray-config.json" >/dev/null
 else
 	echo "jq not found; skipped JSON template validation"
 fi
+
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "v2ray.example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
+assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"
+assert_contains "$render_dir/certbot/cloudflare.ini" \
+	"dns_cloudflare_api_token = REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
+assert_contains "$render_dir/wireguard/wg0.conf" "Address = 10.66.0.1/24"
+assert_contains "$render_dir/wireguard/wg0.conf" "Endpoint = vps-b.example.com:51820"
+assert_contains "$render_dir/wireguard/wg0.conf" "AllowedIPs = 10.66.0.2/32"
+assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
+	"Endpoint = vps-a.example.com:51820"
+assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
+	"AllowedIPs = 0.0.0.0/0, ::/0"
 
 if command -v docker >/dev/null 2>&1; then
 	export RAILS_TRUSTED_PROXIES='["127.0.0.1","172.16.0.0/12","172.18.0.0/16"]'

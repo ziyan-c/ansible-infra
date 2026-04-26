@@ -7,6 +7,9 @@
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    ansible_default_ipv4:
+      interface: eth0
+    enable_neo_backend_routes: true
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -22,6 +25,12 @@
         dest: compose/xray.yml
       - src: "{{ repo_root }}/roles/apps/neo_backend/templates/docker-compose.yml.j2"
         dest: compose/neo_backend.yml
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
+        dest: caddy/vps-a.Caddyfile
+      - src: "{{ repo_root }}/roles/gateway/certbot/templates/cloudflare.ini.j2"
+        dest: certbot/cloudflare.ini
+      - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
+        dest: wireguard/wg0.conf
   tasks:
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:
@@ -36,6 +45,9 @@
       loop:
         - json
         - compose
+        - caddy
+        - certbot
+        - wireguard
 
     - name: Render config templates
       ansible.builtin.template:
@@ -43,6 +55,18 @@
         dest: "{{ render_dir }}/{{ item.dest }}"
         mode: "0600"
       loop: "{{ config_templates }}"
+
+    - name: Render WireGuard client template
+      ansible.builtin.template:
+        src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/client_config.conf.j2"
+        dest: "{{ render_dir }}/wireguard/client_phone_vps_a.conf"
+        mode: "0600"
+      vars:
+        item:
+          - key: phone
+            value: "{{ wg_clients.phone }}"
+          - key: vps_a
+            value: "{{ wg_servers.vps_a }}"
 
 - name: Render static config templates for vps-b
   hosts: vps-b.example.com
@@ -59,17 +83,22 @@
         dest: compose/zammad.yml
       - src: "{{ repo_root }}/roles/apps/cloudflared/templates/docker-compose.yml.j2"
         dest: compose/cloudflared.yml
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
+        dest: caddy/vps-b.Caddyfile
   tasks:
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:
         that:
           - render_dir | length > 0
 
-    - name: Create compose render directory
+    - name: Create render directories
       ansible.builtin.file:
-        path: "{{ render_dir }}/compose"
+        path: "{{ render_dir }}/{{ item }}"
         state: directory
         mode: "0700"
+      loop:
+        - compose
+        - caddy
 
     - name: Render config templates
       ansible.builtin.template:

@@ -9,8 +9,8 @@ can be added later for the few roles that are worth the extra setup cost.
 Checked on this machine:
 
 - Python: `python3` 3.14.4
-- Pytest: `pytest` 9.0.3 is available as a command; `python3 -m pytest` is not
-  available until pytest is installed into that interpreter.
+- Pytest: `pytest` 9.0.3 is available as a command and is the Python test
+  runner used by the default gate.
 - Ansible: `ansible-playbook` core 2.20.4
 - Ansible Lint: `ansible-lint` 26.4.0
 - Ansible Test: `ansible-test` 2.20.4
@@ -19,7 +19,7 @@ Checked on this machine:
 - Docker Compose: v5.1.2
 - ShellCheck: 0.11.0
 - Bats: 1.13.0 is available, but the project no longer requires it because the
-  Bash behavior tests run through Python/pytest-compatible tests.
+  Bash behavior tests run through pytest.
 - jq: 1.7.1
 - hadolint: 2.14.0
 - yamllint: 1.38.0
@@ -59,7 +59,7 @@ make test
 
 It runs:
 
-- Python helper and Bash behavior tests with standard-library `unittest`
+- Python helper and Bash behavior tests with `pytest`
 - Rendered backup/sync script behavior tests with fake Docker, rclone, rsync,
   SSH, and temp directories
 - Bash syntax checks for committed `.sh` scripts
@@ -88,7 +88,7 @@ Python helper tests:
 make test-python
 ```
 
-Pytest runner, useful when you want pytest output or fixtures:
+Pytest alias:
 
 ```bash
 make test-pytest
@@ -204,9 +204,9 @@ time, or more role-level template-only scenarios for the remaining app roles
 after they gain test switches for project paths and runtime operations.
 
 Use Python tests for any new Bash script with real branching logic. Static
-`bash -n` plus ShellCheck is enough for simple rendered scripts, while Python
-gives better temp-directory setup and assertions than Bats without adding
-another test runner.
+`bash -n` plus ShellCheck is enough for simple rendered scripts, while pytest
+fixtures give better temp-directory setup and assertions than Bats without
+adding another test runner.
 
 `shfmt` is intentionally limited to committed `.sh` files. Rendered `.sh.j2`
 templates still get `bash -n` and ShellCheck checks, but generated formatting is

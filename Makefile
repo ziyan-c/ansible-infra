@@ -8,10 +8,9 @@ test: test-python test-bash test-format test-templates test-ansible
 test-all: test test-molecule
 
 test-python:
-	python3 -m unittest discover -s tests -p 'test_*.py'
-
-test-pytest:
 	pytest tests
+
+test-pytest: test-python
 
 test-bash:
 	tests/test_shell_static.sh

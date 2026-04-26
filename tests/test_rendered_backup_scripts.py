@@ -1,57 +1,54 @@
 import os
-import shutil
 import stat
 import subprocess
-import tempfile
 import textwrap
-import unittest
 from pathlib import Path
 
+import pytest
 
-class RenderedBackupScriptTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.repo_root = Path(__file__).resolve().parents[1]
-        cls.render_root = Path(tempfile.mkdtemp())
-        env = os.environ.copy()
-        env.update(
-            {
-                "ANSIBLE_HOME": str(cls.repo_root / ".ansible"),
-                "ANSIBLE_LOCAL_TEMP": "/tmp/ansible-local",
-                "ANSIBLE_REMOTE_TEMP": "/tmp/ansible-remote",
-                "ANSIBLE_COLLECTIONS_PATH": str(cls.repo_root / ".ansible/collections"),
-                "TEST_RENDER_DIR": str(cls.render_root),
-            }
-        )
-        subprocess.run(
-            [
-                "ansible-playbook",
-                "-i",
-                ".local.example/inventory.yml",
-                "tests/render_shell_templates.yml",
-            ],
-            cwd=cls.repo_root,
-            env=env,
-            check=True,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.render_root)
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
-    def setUp(self):
-        self.workdir = Path(tempfile.mkdtemp())
-        self.fake_bin = self.workdir / "fake-bin"
+
+@pytest.fixture(scope="module")
+def render_root(tmp_path_factory):
+    render_dir = tmp_path_factory.mktemp("rendered-shell")
+    env = os.environ.copy()
+    env.update(
+        {
+            "ANSIBLE_HOME": str(REPO_ROOT / ".ansible"),
+            "ANSIBLE_LOCAL_TEMP": "/tmp/ansible-local",
+            "ANSIBLE_REMOTE_TEMP": "/tmp/ansible-remote",
+            "ANSIBLE_COLLECTIONS_PATH": str(REPO_ROOT / ".ansible/collections"),
+            "TEST_RENDER_DIR": str(render_dir),
+        }
+    )
+    subprocess.run(
+        [
+            "ansible-playbook",
+            "-i",
+            ".local.example/inventory.yml",
+            "tests/render_shell_templates.yml",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return render_dir
+
+
+class ScriptHarness:
+    def __init__(self, workdir, render_root):
+        self.workdir = workdir
+        self.render_root = render_root
+        self.fake_bin = workdir / "fake-bin"
         self.fake_bin.mkdir()
-        self.log_dir = self.workdir / "logs"
+        self.log_dir = workdir / "logs"
         self.log_dir.mkdir()
         self.write_common_fakes()
-
-    def tearDown(self):
-        shutil.rmtree(self.workdir)
 
     def write_executable(self, name, content):
         path = self.fake_bin / name
@@ -136,154 +133,339 @@ class RenderedBackupScriptTests(unittest.TestCase):
             stderr=subprocess.PIPE,
         )
 
-    def test_postgres_backup_success_creates_archives_and_uploads(self):
-        backup_dir = self.workdir / "postgres-backups"
-        custom_dir = self.workdir / "custom-data"
-        custom_dir.mkdir()
-        (custom_dir / "asset.txt").write_text("custom asset\n", encoding="utf-8")
-        self.write_executable(
-            "docker",
+
+@pytest.fixture
+def script_harness(tmp_path, render_root):
+    return ScriptHarness(tmp_path, render_root)
+
+
+def test_postgres_backup_success_creates_archives_and_uploads(script_harness):
+    h = script_harness
+    backup_dir = h.workdir / "postgres-backups"
+    custom_dir = h.workdir / "custom-data"
+    custom_dir.mkdir()
+    (custom_dir / "asset.txt").write_text("custom asset\n", encoding="utf-8")
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "exec" ]; then
+          printf 'CREATE DATABASE app;\\n'
+          exit 0
+        fi
+        exit 0
+        """,
+    )
+
+    result = h.run_script(
+        "pg_backup_all.sh",
+        env=h.script_env(
+            POSTGRES_BACKUP_DIR=backup_dir,
+            POSTGRES_CUSTOM_DATA_DIR=custom_dir,
+        ),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert len(list(backup_dir.glob("pg_sql_*.sql.gz"))) == 1
+    assert len(list(backup_dir.glob("pg_custom_data_*.tar.gz"))) == 1
+    assert "copy" in (h.log_dir / "rclone.log").read_text(encoding="utf-8")
+
+
+def test_postgres_backup_failure_removes_partial_archive_and_skips_upload(
+    script_harness,
+):
+    h = script_harness
+    backup_dir = h.workdir / "postgres-backups"
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "exec" ]; then
+          printf 'partial dump\\n'
+          exit 42
+        fi
+        exit 0
+        """,
+    )
+
+    result = h.run_script(
+        "pg_backup_all.sh",
+        env=h.script_env(POSTGRES_BACKUP_DIR=backup_dir),
+    )
+
+    assert result.returncode == 1
+    assert list(backup_dir.glob("pg_sql_*.sql.gz")) == []
+    assert not (h.log_dir / "rclone.log").exists()
+    assert "SQL" in result.stdout + result.stderr
+
+
+def test_caddy_backup_success_excludes_its_own_script(script_harness):
+    h = script_harness
+    caddy_dir = h.workdir / "caddy"
+    caddy_dir.mkdir()
+    (caddy_dir / "Caddyfile").write_text("example.com\n", encoding="utf-8")
+    (caddy_dir / "caddy_backup.sh").write_text("skip me\n", encoding="utf-8")
+    backup_dir = h.workdir / "caddy-backups"
+
+    result = h.run_script(
+        "caddy_backup.sh",
+        env=h.script_env(CADDY_TARGET_DIR=caddy_dir, CADDY_BACKUP_ROOT=backup_dir),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    archives = list(backup_dir.glob("caddy_backup_*.tar.gz"))
+    assert len(archives) == 1
+    listing = subprocess.run(
+        ["tar", "-tzf", str(archives[0])],
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert listing.returncode == 0, listing.stdout + listing.stderr
+    assert "caddy/Caddyfile" in listing.stdout
+    assert "caddy/caddy_backup.sh" not in listing.stdout
+
+
+def test_mailcow_backup_success_packages_latest_backup_directory(script_harness):
+    h = script_harness
+    mailcow_dir = h.workdir / "mailcow"
+    helper_dir = mailcow_dir / "helper-scripts"
+    helper_dir.mkdir(parents=True)
+    helper = helper_dir / "backup_and_restore.sh"
+    helper.write_text(
+        textwrap.dedent(
             """\
             #!/usr/bin/env bash
             set -euo pipefail
-            echo "$*" >> "$TEST_LOG_DIR/docker.log"
-            if [ "${1:-}" = "exec" ]; then
-              printf 'CREATE DATABASE app;\\n'
-              exit 0
-            fi
+            mkdir -p "$BACKUP_LOCATION/mailcow-test"
+            printf 'mailcow data\\n' > "$BACKUP_LOCATION/mailcow-test/data.txt"
+            """
+        ),
+        encoding="utf-8",
+    )
+    helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
+    backup_dir = h.workdir / "mailcow-backups"
+
+    result = h.run_script(
+        "mailcow_backup.sh",
+        env=h.script_env(MAILCOW_DIR=mailcow_dir, MAILCOW_BACKUP_ROOT=backup_dir),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    archives = list(backup_dir.glob("mailcow_backup_*.tar.gz"))
+    assert len(archives) == 1
+    assert not (backup_dir / "mailcow-test").exists()
+
+
+def test_mailcow_backup_failure_stops_before_packaging_and_upload(script_harness):
+    h = script_harness
+    mailcow_dir = h.workdir / "mailcow"
+    helper_dir = mailcow_dir / "helper-scripts"
+    helper_dir.mkdir(parents=True)
+    helper = helper_dir / "backup_and_restore.sh"
+    helper.write_text(
+        textwrap.dedent(
+            """\
+            #!/usr/bin/env bash
+            set -euo pipefail
+            exit 44
+            """
+        ),
+        encoding="utf-8",
+    )
+    helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
+    backup_dir = h.workdir / "mailcow-backups"
+
+    result = h.run_script(
+        "mailcow_backup.sh",
+        env=h.script_env(MAILCOW_DIR=mailcow_dir, MAILCOW_BACKUP_ROOT=backup_dir),
+    )
+
+    assert result.returncode == 1
+    assert list(backup_dir.glob("mailcow_backup_*.tar.gz")) == []
+    assert not (h.log_dir / "rclone.log").exists()
+
+
+def test_zammad_local_backup_runs_compose_backup_command(script_harness):
+    h = script_harness
+    zammad_dir = h.workdir / "zammad"
+    zammad_dir.mkdir()
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "volume" ]; then
+          exit 1
+        fi
+        exit 0
+        """,
+    )
+
+    result = h.run_script(
+        "zammad_sync.sh",
+        "local",
+        env=h.script_env(ZAMMAD_DIR=zammad_dir),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    docker_log = (h.log_dir / "docker.log").read_text(encoding="utf-8")
+    assert "compose exec -T zammad-backup" in docker_log
+
+
+def test_zammad_cloud_sync_uploads_volume_and_prunes_old_remote_files(
+    script_harness,
+):
+    h = script_harness
+    volume_path = h.workdir / "zammad-volume"
+    volume_path.mkdir()
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "volume" ]; then
+          printf '%s\\n' "$TEST_ZAMMAD_VOLUME"
+          exit 0
+        fi
+        exit 0
+        """,
+    )
+    h.write_executable(
+        "head",
+        """\
+        #!/usr/bin/env bash
+        if [ "${1:-}" = "-n" ] && [[ "${2:-}" == -* ]]; then
+          trim="${2#-}"
+          tmp="$(mktemp)"
+          cat > "$tmp"
+          total="$(wc -l < "$tmp" | tr -d ' ')"
+          keep=$((total - trim))
+          if [ "$keep" -gt 0 ]; then
+            /usr/bin/sed -n "1,${keep}p" "$tmp"
+          fi
+          rm -f "$tmp"
+          exit 0
+        fi
+        exec /usr/bin/head "$@"
+        """,
+    )
+    h.write_executable(
+        "rclone",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/rclone.log"
+        case "${1:-}" in
+          lsf)
+            index=1
+            while [ "$index" -le 30 ]; do
+              printf 'zammad-backup-%02d.tar.gz\\n' "$index"
+              index=$((index + 1))
+            done
+            ;;
+          copy|deletefile)
             exit 0
-            """,
-        )
+            ;;
+        esac
+        """,
+    )
 
-        result = self.run_script(
-            "pg_backup_all.sh",
-            env=self.script_env(
-                POSTGRES_BACKUP_DIR=backup_dir,
-                POSTGRES_CUSTOM_DATA_DIR=custom_dir,
-            ),
-        )
+    result = h.run_script(
+        "zammad_sync.sh",
+        "cloud",
+        env=h.script_env(TEST_ZAMMAD_VOLUME=volume_path),
+    )
 
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(len(list(backup_dir.glob("pg_sql_*.sql.gz"))), 1)
-        self.assertEqual(len(list(backup_dir.glob("pg_custom_data_*.tar.gz"))), 1)
-        self.assertIn("copy", (self.log_dir / "rclone.log").read_text(encoding="utf-8"))
-
-    def test_caddy_backup_success_excludes_its_own_script(self):
-        caddy_dir = self.workdir / "caddy"
-        caddy_dir.mkdir()
-        (caddy_dir / "Caddyfile").write_text("example.com\n", encoding="utf-8")
-        (caddy_dir / "caddy_backup.sh").write_text("skip me\n", encoding="utf-8")
-        backup_dir = self.workdir / "caddy-backups"
-
-        result = self.run_script(
-            "caddy_backup.sh",
-            env=self.script_env(CADDY_TARGET_DIR=caddy_dir, CADDY_BACKUP_ROOT=backup_dir),
-        )
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        archives = list(backup_dir.glob("caddy_backup_*.tar.gz"))
-        self.assertEqual(len(archives), 1)
-        listing = subprocess.run(
-            ["tar", "-tzf", str(archives[0])],
-            check=False,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self.assertEqual(listing.returncode, 0, listing.stdout + listing.stderr)
-        self.assertIn("caddy/Caddyfile", listing.stdout)
-        self.assertNotIn("caddy/caddy_backup.sh", listing.stdout)
-
-    def test_mailcow_backup_success_packages_latest_backup_directory(self):
-        mailcow_dir = self.workdir / "mailcow"
-        helper_dir = mailcow_dir / "helper-scripts"
-        helper_dir.mkdir(parents=True)
-        helper = helper_dir / "backup_and_restore.sh"
-        helper.write_text(
-            textwrap.dedent(
-                """\
-                #!/usr/bin/env bash
-                set -euo pipefail
-                mkdir -p "$BACKUP_LOCATION/mailcow-test"
-                printf 'mailcow data\\n' > "$BACKUP_LOCATION/mailcow-test/data.txt"
-                """
-            ),
-            encoding="utf-8",
-        )
-        helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
-        backup_dir = self.workdir / "mailcow-backups"
-
-        result = self.run_script(
-            "mailcow_backup.sh",
-            env=self.script_env(MAILCOW_DIR=mailcow_dir, MAILCOW_BACKUP_ROOT=backup_dir),
-        )
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        archives = list(backup_dir.glob("mailcow_backup_*.tar.gz"))
-        self.assertEqual(len(archives), 1)
-        self.assertFalse((backup_dir / "mailcow-test").exists())
-
-    def test_zammad_local_backup_runs_compose_backup_command(self):
-        zammad_dir = self.workdir / "zammad"
-        zammad_dir.mkdir()
-        self.write_executable(
-            "docker",
-            """\
-            #!/usr/bin/env bash
-            set -euo pipefail
-            echo "$*" >> "$TEST_LOG_DIR/docker.log"
-            if [ "${1:-}" = "volume" ]; then
-              exit 1
-            fi
-            exit 0
-            """,
-        )
-
-        result = self.run_script(
-            "zammad_sync.sh",
-            "local",
-            env=self.script_env(ZAMMAD_DIR=zammad_dir),
-        )
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        docker_log = (self.log_dir / "docker.log").read_text(encoding="utf-8")
-        self.assertIn("compose exec -T zammad-backup", docker_log)
-
-    def test_certbot_sync_pushes_to_each_edge_node(self):
-        self.write_executable(
-            "ssh",
-            """\
-            #!/usr/bin/env bash
-            set -euo pipefail
-            echo "$*" >> "$TEST_LOG_DIR/ssh.log"
-            """,
-        )
-        self.write_executable(
-            "rsync",
-            """\
-            #!/usr/bin/env bash
-            set -euo pipefail
-            echo "$*" >> "$TEST_LOG_DIR/rsync.log"
-            """,
-        )
-
-        result = self.run_script(
-            "sync_certs.sh",
-            env=self.script_env(
-                CERTBOT_SOURCE_DIR=self.workdir / "certs",
-                CERTBOT_DEST_DIR=self.workdir / "remote-certs",
-                CERTBOT_KNOWN_HOSTS=self.workdir / "known_hosts",
-            ),
-        )
-
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        ssh_log = (self.log_dir / "ssh.log").read_text(encoding="utf-8")
-        rsync_log = (self.log_dir / "rsync.log").read_text(encoding="utf-8")
-        self.assertIn("root@vps-a.example.com", ssh_log)
-        self.assertIn("root@vps-b.example.com", ssh_log)
-        self.assertIn("root@vps-a.example.com", rsync_log)
-        self.assertIn("root@vps-b.example.com", rsync_log)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rclone_log = (h.log_dir / "rclone.log").read_text(encoding="utf-8")
+    assert f"copy {volume_path} gdrive:AUTO_BACKUPS/zammad -v" in rclone_log
+    assert (
+        "deletefile gdrive:AUTO_BACKUPS/zammad/zammad-backup-01.tar.gz"
+        in rclone_log
+    )
+    assert (
+        "deletefile gdrive:AUTO_BACKUPS/zammad/zammad-backup-02.tar.gz"
+        in rclone_log
+    )
+    assert "zammad-backup-03.tar.gz" not in rclone_log
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_certbot_sync_pushes_to_each_edge_node(script_harness):
+    h = script_harness
+    h.write_executable(
+        "ssh",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/ssh.log"
+        """,
+    )
+    h.write_executable(
+        "rsync",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/rsync.log"
+        """,
+    )
+
+    result = h.run_script(
+        "sync_certs.sh",
+        env=h.script_env(
+            CERTBOT_SOURCE_DIR=h.workdir / "certs",
+            CERTBOT_DEST_DIR=h.workdir / "remote-certs",
+            CERTBOT_KNOWN_HOSTS=h.workdir / "known_hosts",
+        ),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    ssh_log = (h.log_dir / "ssh.log").read_text(encoding="utf-8")
+    rsync_log = (h.log_dir / "rsync.log").read_text(encoding="utf-8")
+    assert "root@vps-a.example.com" in ssh_log
+    assert "root@vps-b.example.com" in ssh_log
+    assert "root@vps-a.example.com" in rsync_log
+    assert "root@vps-b.example.com" in rsync_log
+
+
+def test_certbot_sync_stops_when_rsync_fails(script_harness):
+    h = script_harness
+    h.write_executable(
+        "ssh",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/ssh.log"
+        """,
+    )
+    h.write_executable(
+        "rsync",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/rsync.log"
+        exit 23
+        """,
+    )
+
+    result = h.run_script(
+        "sync_certs.sh",
+        env=h.script_env(
+            CERTBOT_SOURCE_DIR=h.workdir / "certs",
+            CERTBOT_DEST_DIR=h.workdir / "remote-certs",
+            CERTBOT_KNOWN_HOSTS=h.workdir / "known_hosts",
+        ),
+    )
+
+    assert result.returncode == 23
+    ssh_log = (h.log_dir / "ssh.log").read_text(encoding="utf-8")
+    assert "root@vps-a.example.com" in ssh_log
+    assert "docker restart" not in ssh_log
+    assert "root@vps-b.example.com" not in ssh_log
