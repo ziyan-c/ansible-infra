@@ -25,6 +25,7 @@ for SERVER in "${SERVERS[@]}"; do
     echo "[$(date)] 正在同步新证书到 $SERVER ..."
     
     # 确保远端存放目录存在
+    # shellcheck disable=SC2029
     ssh "${SSH_OPTS[@]}" "$SERVER" "mkdir -p '$DEST_DIR'"
 
     # 使用 rsync 推送 (解析软链接并覆盖)

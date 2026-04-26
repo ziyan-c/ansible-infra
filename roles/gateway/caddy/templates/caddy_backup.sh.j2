@@ -48,18 +48,20 @@ echo "[$TIMESTAMP] 开始打包 Caddy 目录 ($TARGET_DIR) ..."
 
 # 使用 tar 打包整个 /opt/caddy 目录（排除备份脚本自身和生成的备份文件夹，以防万一）
 # 修改 caddy_backup.sh.j2 中的这行代码：
-tar -czf "$BACKUP_ROOT/$TAR_FILE" \
+if tar -czf "$BACKUP_ROOT/$TAR_FILE" \
     --exclude="caddy/caddy_backup.sh" \
-    -C /opt caddy
-# 👆 这样写，tar 才能准确剔除掉 caddy 目录下的那个脚本
-
-
-if [ $? -eq 0 ] && [ -s "$BACKUP_ROOT/$TAR_FILE" ]; then
-    echo "[$TIMESTAMP] 打包成功: $TAR_FILE"
+    -C /opt caddy; then
+    if [ -s "$BACKUP_ROOT/$TAR_FILE" ]; then
+        echo "[$TIMESTAMP] 打包成功: $TAR_FILE"
+    else
+        echo "[$TIMESTAMP] 🚨 打包结果为空！"
+        exit 1
+    fi
 else
     echo "[$TIMESTAMP] 🚨 打包失败！"
     exit 1
 fi
+# 👆 这样写，tar 才能准确剔除掉 caddy 目录下的那个脚本
 
 # --- 3. 上传到 Google Drive ---
 echo "[$TIMESTAMP] 正在上传至 Google Drive ($GDRIVE_REMOTE) ..."

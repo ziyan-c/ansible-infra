@@ -1,15 +1,19 @@
 import os
 import pathlib
 
-def merge_contents(output_filename="all_files.txt", include_local=True):
+def merge_contents(output_filename="all_files.txt", include_local=False, project_root=None):
     """
     合并项目内所有文件内容。
     
     :param output_filename: 输出的文件名
     :param include_local: 是否收集 .local 文件夹（即使它是软链接）。True 为收集，False 为跳过。
+    :param project_root: 项目根目录；测试时可传入临时目录。默认使用脚本所在目录。
     """
     # 获取脚本所在的项目根目录
-    project_root = pathlib.Path(__file__).absolute().parent
+    if project_root is None:
+        project_root = pathlib.Path(__file__).absolute().parent
+    else:
+        project_root = pathlib.Path(project_root).absolute()
     print(f"📦 当前项目根目录: {project_root}")
     
     # 确保输出文件生成在 .local 文件夹内
@@ -33,8 +37,8 @@ def merge_contents(output_filename="all_files.txt", include_local=True):
     ignored_extensions = {'.pdf', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.zip', '.tar', '.gz', '.rar', '.7z', '.vault'}
 
     with output_path.open('w', encoding='utf-8') as outfile:
-        # 核心逻辑：使用 os.walk 并强制开启 followlinks=True 以穿透软链接
-        for root, dirs, files in os.walk(project_root, followlinks=True):
+        # include_local=True 时才跟随软链接，避免默认模式误钻进私密目录。
+        for root, dirs, files in os.walk(project_root, followlinks=include_local):
             
             # 原地修改 dirs 列表，过滤掉 ignored_dirs 里的文件夹
             # 这样 os.walk 就不会进入被忽略的文件夹
@@ -76,9 +80,10 @@ def merge_contents(output_filename="all_files.txt", include_local=True):
                     print(f"无法读取 {file_path}: {e}")
 
     print(f"\n🎉 完成！共合并了 {count} 个文件，已保存至 {output_path}")
+    return output_path
 
 if __name__ == "__main__":
     # 👇 在这里控制开关！
     # include_local=True  -> 会钻进 .local 软链接去收集里面的代码
     # include_local=False -> 彻底无视 .local 里面的内容（但输出文件依然会存在那）
-    merge_contents(output_filename="all_files.txt", include_local=True)
+    merge_contents(output_filename="all_files.txt", include_local=False)

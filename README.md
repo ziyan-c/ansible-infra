@@ -63,6 +63,15 @@ ansible-lint site.yml
 The current lint profile starts at `min` in `.ansible-lint` so it can be adopted
 without turning the existing personal-infra style into a wall of noise.
 
+Run the local test suite:
+
+```bash
+make test
+```
+
+This checks Python helpers, committed Bash scripts, rendered Bash templates,
+Ansible inventory loading, playbook syntax, and `ansible-lint`.
+
 Run everything:
 
 ```bash

@@ -1,0 +1,38 @@
+---
+- name: Render shell templates for static checks
+  hosts: vps-a.example.com
+  gather_facts: false
+  connection: local
+  vars:
+    render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
+    repo_root: "{{ playbook_dir }}/.."
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    shell_templates:
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/caddy_backup.sh.j2"
+        dest: caddy_backup.sh
+      - src: "{{ repo_root }}/roles/gateway/certbot/templates/sync_certs.sh.j2"
+        dest: sync_certs.sh
+      - src: "{{ repo_root }}/roles/apps/mailcow/templates/mailcow_backup.sh.j2"
+        dest: mailcow_backup.sh
+      - src: "{{ repo_root }}/roles/apps/postgres/templates/pg_backup_all.sh.j2"
+        dest: pg_backup_all.sh
+      - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_sync.sh.j2"
+        dest: zammad_sync.sh
+  tasks:
+    - name: Ensure TEST_RENDER_DIR was provided
+      ansible.builtin.assert:
+        that:
+          - render_dir | length > 0
+
+    - name: Create render directory
+      ansible.builtin.file:
+        path: "{{ render_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Render shell templates
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ render_dir }}/{{ item.dest }}"
+        mode: "0700"
+      loop: "{{ shell_templates }}"
