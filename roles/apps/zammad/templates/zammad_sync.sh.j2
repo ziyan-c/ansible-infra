@@ -12,10 +12,38 @@ TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 ZAMMAD_DIR="${ZAMMAD_DIR:-/opt/zammad}"
 
 # 云端保留份数依然需要脚本自己处理 (Zammad 管不到网盘)
+KEEP_LOCAL={{ backup_keep_local }}
 KEEP_REMOTE={{ backup_keep_remote }}
 
 # 动态定位 Docker 备份卷路径
 VOLUME_PATH=$(docker volume inspect zammad_zammad-backup -f '{% raw %}{{ .Mountpoint }}{% endraw %}' 2>/dev/null)
+
+prune_local_backups() {
+    if [ -z "$VOLUME_PATH" ] || [ ! -d "$VOLUME_PATH" ]; then
+        echo "[$TIMESTAMP] ⚠️ 找不到本地备份物理路径，跳过本地清理: $VOLUME_PATH"
+        return 0
+    fi
+
+    keep_files=$((KEEP_LOCAL * 2))
+    if [ "$keep_files" -le 0 ]; then
+        echo "[$TIMESTAMP] ⚠️ KEEP_LOCAL <= 0，跳过本地清理。"
+        return 0
+    fi
+
+    echo "[$TIMESTAMP] 正在清理本地旧备份 (保留最新的 $KEEP_LOCAL 组)..."
+    find "$VOLUME_PATH" -maxdepth 1 -type f \
+        \( -name '*_zammad_db.psql.gz' -o -name '*_zammad_files.tar.gz' \) \
+        -printf '%T@ %p\n' \
+        | sort -n \
+        | head -n -"$keep_files" \
+        | cut -d' ' -f2- \
+        | while read -r filename; do
+            if [ -n "$filename" ]; then
+                rm -f -- "$filename"
+                echo "[$TIMESTAMP] 已清理本地旧文件: $(basename "$filename")"
+            fi
+        done
+}
 
 # --- 2. 逻辑分支 ---
 case "$1" in
@@ -25,6 +53,7 @@ case "$1" in
         cd "$ZAMMAD_DIR" || exit 1
         if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/scripts/zammad_backup.sh; then
             echo "[$TIMESTAMP] ✅ Zammad 本地备份与内置垃圾回收成功！"
+            prune_local_backups
         else
             echo "[$TIMESTAMP] 🚨 Zammad 本地备份失败！"
             exit 1

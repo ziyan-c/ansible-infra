@@ -96,7 +96,7 @@ x-shared:
 services:
   zammad-backup:
     <<: *zammad-service
-    command: ["zammad-backup"]
+    command: ["/bin/sh", "-lc", "sleep infinity"]
     volumes:
       - zammad-backup:/var/tmp/zammad
       - zammad-storage:/opt/zammad/storage
