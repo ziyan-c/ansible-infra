@@ -63,11 +63,6 @@
     state: started
     enabled: yes
 
-- name: 确保 Docker 能够通过 Systemd 重载配置
-  systemd:
-    daemon_reload: yes
-
-
 - name: 创建全局公共网关网络 (web-proxy)
   community.docker.docker_network:
     name: web-proxy

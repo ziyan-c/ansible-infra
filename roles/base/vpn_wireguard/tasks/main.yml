@@ -95,11 +95,27 @@
   delegate_to: localhost
   become: no
   run_once: true
-  shell: >
-    umask 077 &&
-    qrencode -t png
-    -o "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png"
-    < "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"
+  shell: |
+    set -euo pipefail
+    output="{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png"
+    input="{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"
+    tmp="$(mktemp)"
+    trap 'rm -f "$tmp"' EXIT
+
+    umask 077
+    qrencode -t png -o "$tmp" < "$input"
+
+    if [ -f "$output" ] && cmp -s "$tmp" "$output"; then
+      echo unchanged
+    else
+      mv "$tmp" "$output"
+      chmod 0600 "$output"
+      echo changed
+    fi
+  args:
+    executable: /bin/bash
+  register: wireguard_qrcode_generation
+  changed_when: wireguard_qrcode_generation.stdout == "changed"
   when:
     - qrencode_check is defined
     - qrencode_check.rc | default(1) == 0

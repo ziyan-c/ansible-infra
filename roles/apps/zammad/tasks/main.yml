@@ -53,7 +53,18 @@
   changed_when: false
   ignore_errors: no
 
-- name: 强行将 Zammad 附件存储模式改为 File System，并迁移存量数据
+- name: 查询 Zammad 附件存储状态
+  ansible.builtin.command: >
+    docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r
+    "puts Setting.get('storage_provider').to_s;
+    puts(Store::File.where(provider: 'DB').exists? ? 'db_store_present' : 'db_store_absent')"
+  args:
+    chdir: /opt/zammad
+  register: zammad_storage_status
+  changed_when: false
+  when: zammad_ready.rc == 0
+
+- name: 将 Zammad 附件存储模式改为 File System，并迁移存量数据
   ansible.builtin.shell: |
     docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r "
     Setting.set('storage_provider', 'File');
@@ -62,12 +73,21 @@
   args:
     chdir: /opt/zammad
   register: zammad_storage_fix
-  changed_when: false
-  when: zammad_ready.rc == 0
+  changed_when: true
+  when:
+    - zammad_ready.rc == 0
+    - >
+      zammad_storage_status.stdout_lines | default([]) | first | default('') != 'File' or
+      'db_store_present' in (zammad_storage_status.stdout_lines | default([]))
 
 - name: 打印存储修改结果
   debug:
-    msg: "Zammad 存储模式已强制锁定为 File，杜绝数据库撑爆风险。"
+    msg: >-
+      {{
+        'Zammad 存储模式已调整为 File，并完成必要迁移。'
+        if zammad_storage_fix is changed
+        else 'Zammad 存储模式已是 File，无需迁移。'
+      }}
   when: zammad_ready.rc == 0
 # ==========================================
 # 👆 新增结束
