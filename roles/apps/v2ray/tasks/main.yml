@@ -18,7 +18,7 @@
     dest: /opt/v2ray/config.json
     owner: root
     group: root
-    mode: '0600'
+    mode: '0644'
   notify: Restart V2ray
   no_log: true
 
