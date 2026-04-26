@@ -50,6 +50,9 @@
     wg_dns: "1.1.1.1"
     ansible_default_ipv4:
       interface: eth0
+    ansible_facts:
+      default_ipv4:
+        interface: eth0
     wg_servers:
       local:
         hostname: localhost

@@ -38,7 +38,7 @@
   ansible.builtin.known_hosts:
     path: /root/.ssh/known_hosts
     name: "{{ item.item }}"
-    key: "{{ item.stdout }}"
+    key: "{{ item.stdout_lines | reject('match', '^#') | list | first }}"
   loop: "{{ edge_host_key_scans.results }}"
 
 # ==========================================

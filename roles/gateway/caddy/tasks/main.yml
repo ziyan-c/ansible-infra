@@ -6,7 +6,6 @@
     owner: root
     group: root
     mode: '0755'
-    recurse: yes   # 👈 必须加上这行！相当于 mkdir -p
   loop:
     - /opt/caddy
     - /opt/caddy/site

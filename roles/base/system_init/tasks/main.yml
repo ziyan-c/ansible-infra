@@ -33,16 +33,21 @@
       - postgresql-client
     state: present
 
+- name: 收集系统服务信息
+  ansible.builtin.service_facts:
+  when: system_disable_ufw_apparmor | bool
+
 - name: 停用并禁用 UFW 和 AppArmor (避免与 Firewalld 冲突)
   systemd:
     name: "{{ item }}"
     state: stopped
     enabled: no
   loop:
-    - ufw
-    - apparmor
-  ignore_errors: yes # 如果没安装则忽略报错
-  when: system_disable_ufw_apparmor | bool
+    - ufw.service
+    - apparmor.service
+  when:
+    - system_disable_ufw_apparmor | bool
+    - item in ansible_facts.services
 
 
 - name: 查询当前系统时区
@@ -122,7 +127,7 @@
 
 - name: 将主网卡绑定至 public 区域
   ansible.posix.firewalld:
-    interface: "{{ ansible_default_ipv4.interface }}"
+    interface: "{{ ansible_facts.default_ipv4.interface }}"
     zone: public
     permanent: yes
     state: enabled

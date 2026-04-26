@@ -18,8 +18,8 @@ PrivateKey = {{ my_node.priv }}
 
 # 开启 NAT 转发，强行插入规则到最顶部 (-I) 绕过 Firewalld 拦截，并允许一来一回的双向流量
 # 👇 在最后追加了 -o wg0 -j MASQUERADE 规则，解决内网跳板访问问题
-PostUp = iptables -I FORWARD -i wg0 -j ACCEPT; iptables -I FORWARD -o wg0 -j ACCEPT; iptables -t nat -I POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE; iptables -t nat -I POSTROUTING -o wg0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ ansible_default_ipv4.interface }} -j MASQUERADE; iptables -t nat -D POSTROUTING -o wg0 -j MASQUERADE
+PostUp = iptables -I FORWARD -i wg0 -j ACCEPT; iptables -I FORWARD -o wg0 -j ACCEPT; iptables -t nat -I POSTROUTING -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE; iptables -t nat -I POSTROUTING -o wg0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE; iptables -t nat -D POSTROUTING -o wg0 -j MASQUERADE
 
 # ===============================================
 # 服务器互联 (Full Mesh)

@@ -78,6 +78,7 @@
     path: "{{ playbook_dir }}/.local/wg-clients/{{ item.key }}"  # 👈 修改这里
     state: directory
     mode: '0700'
+  no_log: true
   loop: "{{ wg_clients | dict2items }}"
 
 - name: 为每个客户端生成对应所有服务器的配置文件 (.conf)
@@ -116,6 +117,7 @@
     executable: /bin/bash
   register: wireguard_qrcode_generation
   changed_when: wireguard_qrcode_generation.stdout == "changed"
+  no_log: true
   when:
     - qrencode_check is defined
     - qrencode_check.rc | default(1) == 0

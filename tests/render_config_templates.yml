@@ -9,6 +9,9 @@
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
     ansible_default_ipv4:
       interface: eth0
+    ansible_facts:
+      default_ipv4:
+        interface: eth0
     enable_neo_backend_routes: true
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
