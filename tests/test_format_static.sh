@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 if command -v yamllint >/dev/null 2>&1; then
-	yamllint -c .yamllint site.yml roles .local.example collections tests
+	yamllint -c .yamllint site.yml roles .local.example collections tests .github
 else
 	echo "yamllint not found; skipped YAML lint"
 fi

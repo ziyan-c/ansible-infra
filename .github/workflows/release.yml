@@ -1,0 +1,110 @@
+---
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to release"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Test And Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.release_ref.outputs.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt yamllint
+
+      - name: Install Ansible collections
+        run: |
+          mkdir -p .ansible/collections
+          ansible-galaxy collection install \
+            -r collections/requirements.yml \
+            -p .ansible/collections
+
+      - name: Run release test suite
+        run: make test
+
+      - name: Build release archive
+        id: package
+        run: |
+          tag="${{ steps.release_ref.outputs.tag }}"
+          safe_tag="${tag//\//-}"
+          package="ansible-infra-${safe_tag}"
+
+          mkdir -p dist
+          git archive \
+            --format=tar.gz \
+            --prefix="${package}/" \
+            --output="dist/${package}.tar.gz" \
+            HEAD
+
+          (
+            cd dist
+            sha256sum "${package}.tar.gz" > SHA256SUMS
+          )
+
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "package=${package}" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.package.outputs.tag }}"
+          title="ansible-infra ${tag}"
+          release_flags=(--verify-tag --title "$title" --generate-notes)
+
+          if [[ "$tag" =~ -(alpha|beta|rc|pre) ]]; then
+            release_flags+=(--prerelease)
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* "${release_flags[@]}"
+          fi

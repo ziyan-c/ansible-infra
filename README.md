@@ -79,6 +79,19 @@ Run the extended suite, including Molecule:
 make test-all
 ```
 
+## Releases
+
+GitHub Actions creates a release automatically whenever a tag is pushed. The
+release job first runs `make test`, then publishes a source archive generated
+from the tagged tree plus `SHA256SUMS`.
+
+```bash
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+Tags containing `-alpha`, `-beta`, `-rc`, or `-pre` are marked as pre-releases.
+
 Run everything:
 
 ```bash
