@@ -1,0 +1,34 @@
+---
+- name: Converge
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    neo_backend_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/neo_backend"
+    neo_backend_owner: "{{ lookup('pipe', 'id -un') }}"
+    neo_backend_group: "{{ lookup('pipe', 'id -gn') }}"
+    neo_backend_manage_runtime: false
+    neo_ssh_tunnel_image: "alpine:test"
+    neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
+    ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
+    neo_ssh_user: remote-user
+    neo_ssh_host: compute.example.com
+    neo_ssh_port: 22
+    wg_network_prefix: "10.66.0"
+    wg_servers:
+      local:
+        hostname: localhost
+        endpoint: localhost
+        ip_suffix: 1
+        pub: "REPLACE_ME_WG_SERVER_PUBLIC_KEY"
+        priv: "REPLACE_ME_WG_SERVER_PRIVATE_KEY"
+      peer:
+        hostname: peer.example.com
+        endpoint: peer.example.com
+        ip_suffix: 2
+        pub: "REPLACE_ME_WG_PEER_PUBLIC_KEY"
+        priv: "REPLACE_ME_WG_PEER_PRIVATE_KEY"
+  tasks:
+    - name: Apply Neo Backend role in template-only mode
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."

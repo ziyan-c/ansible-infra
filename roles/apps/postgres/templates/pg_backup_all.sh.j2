@@ -4,12 +4,12 @@ set -euo pipefail
 # PostgreSQL 自动化备份脚本 (数据库 + 物理文件)
 # ==========================================
 
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH="${ANSIBLE_INFRA_SCRIPT_PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
 # --- 1. 配置变量 ---
 ROLE_NAME="postgres"
 CONTAINER_NAME="postgres"
-BACKUP_DIR="/opt/${ROLE_NAME}_backups"
+BACKUP_DIR="${POSTGRES_BACKUP_DIR:-/opt/${ROLE_NAME}_backups}"
 GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}" 
 
 # 👇 引入 Ansible 全局变量
@@ -24,7 +24,7 @@ DATA_BACKUP="pg_custom_data_$TIMESTAMP.tar.gz"
 
 DB_USER="{{ pg_user }}"
 DB_PASS="{{ pg_admin_password | default(pg_password) }}"
-CUSTOM_DATA_DIR="{{ pg_custom_dir }}"
+CUSTOM_DATA_DIR="${POSTGRES_CUSTOM_DATA_DIR:-{{ pg_custom_dir }}}"
 
 cleanup_local_backups() {
     local pattern="$1"

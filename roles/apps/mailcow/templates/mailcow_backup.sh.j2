@@ -5,12 +5,12 @@ set -euo pipefail
 # ==========================================
 
 # 👇 修复 1: 必须补全环境变量，否则 Cron 执行时会报 "docker: command not found"
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH="${ANSIBLE_INFRA_SCRIPT_PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
 # --- 1. 配置变量 ---
 ROLE_NAME="mailcow"
-MAILCOW_DIR="/opt/mailcow-dockerized"
-BACKUP_ROOT="/opt/mailcow_backups"
+MAILCOW_DIR="${MAILCOW_DIR:-/opt/mailcow-dockerized}"
+BACKUP_ROOT="${MAILCOW_BACKUP_ROOT:-/opt/mailcow_backups}"
 GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}"
 
 # 👇 引入 Ansible 全局变量

@@ -1,5 +1,6 @@
 ---
 - name: Restart Xray
   community.docker.docker_compose_v2:
-    project_src: /opt/xray
+    project_src: "{{ xray_project_dir }}"
     state: restarted
+  when: xray_manage_runtime | bool

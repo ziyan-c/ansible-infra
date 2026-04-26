@@ -4,12 +4,12 @@ set -euo pipefail
 # Caddy 自动化全量备份脚本 (目录打包)
 # ==========================================
 
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH="${ANSIBLE_INFRA_SCRIPT_PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
 # --- 1. 配置变量 ---
 ROLE_NAME="caddy"
-TARGET_DIR="/opt/caddy"
-BACKUP_ROOT="/opt/caddy_backups"
+TARGET_DIR="${CADDY_TARGET_DIR:-/opt/caddy}"
+BACKUP_ROOT="${CADDY_BACKUP_ROOT:-/opt/caddy_backups}"
 GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}/{{ inventory_hostname }}"
 
 # 👇 引入 Ansible 全局变量
@@ -49,8 +49,8 @@ echo "[$TIMESTAMP] 开始打包 Caddy 目录 ($TARGET_DIR) ..."
 # 使用 tar 打包整个 /opt/caddy 目录（排除备份脚本自身和生成的备份文件夹，以防万一）
 # 修改 caddy_backup.sh.j2 中的这行代码：
 if tar -czf "$BACKUP_ROOT/$TAR_FILE" \
-    --exclude="caddy/caddy_backup.sh" \
-    -C /opt caddy; then
+    --exclude="$(basename "$TARGET_DIR")/caddy_backup.sh" \
+    -C "$(dirname "$TARGET_DIR")" "$(basename "$TARGET_DIR")"; then
     if [ -s "$BACKUP_ROOT/$TAR_FILE" ]; then
         echo "[$TIMESTAMP] 打包成功: $TAR_FILE"
     else

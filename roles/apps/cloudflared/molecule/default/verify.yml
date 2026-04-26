@@ -1,0 +1,27 @@
+---
+- name: Verify
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    cloudflared_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/cloudflared"
+  tasks:
+    - name: Check rendered compose file exists
+      ansible.builtin.stat:
+        path: "{{ cloudflared_project_dir }}/docker-compose.yml"
+      register: cloudflared_compose
+
+    - name: Assert rendered compose file exists
+      ansible.builtin.assert:
+        that:
+          - cloudflared_compose.stat.exists
+
+    - name: Validate rendered compose file
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ cloudflared_project_dir }}/docker-compose.yml config"
+      changed_when: false
+
+    - name: Check tunnel token was rendered
+      ansible.builtin.command:
+        cmd: "grep -F 'test-cloudflare-tunnel-token' {{ cloudflared_project_dir }}/docker-compose.yml"
+      changed_when: false

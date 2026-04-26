@@ -1,0 +1,16 @@
+---
+- name: Converge
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    cloudflared_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/cloudflared"
+    cloudflared_owner: "{{ lookup('pipe', 'id -un') }}"
+    cloudflared_group: "{{ lookup('pipe', 'id -gn') }}"
+    cloudflared_manage_runtime: false
+    cloudflared_image: "cloudflare/cloudflared:test"
+    cf_tunnel_token: "test-cloudflare-tunnel-token"
+  tasks:
+    - name: Apply Cloudflared role in template-only mode
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."

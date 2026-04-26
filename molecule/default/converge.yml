@@ -1,0 +1,167 @@
+---
+- name: Prepare template inventory groups
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Add localhost to edge group for certificate sync template
+      ansible.builtin.add_host:
+        name: localhost
+        groups:
+          - edge_nodes
+      changed_when: false
+
+- name: Render repository templates
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    render_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/rendered"
+    repo_root: "{{ playbook_dir }}/../.."
+    system_timezone: Etc/UTC
+    docker_log_max_size: "10m"
+    docker_log_max_file: "3"
+    caddy_image: "caddy:2.11.2"
+    v2ray_image: "v2fly/v2fly-core:test"
+    xray_image: "ghcr.io/xtls/xray-core:test"
+    pgvector_image: "ankane/pgvector:test"
+    cloudflared_image: "cloudflare/cloudflared:test"
+    neo_ssh_tunnel_image: "alpine:test"
+    base_domain: example.com
+    v2ray_domain: v2ray.example.com
+    enable_neo_backend_routes: true
+    certbot_email: admin@example.com
+    certbot_source_dir: /etc/letsencrypt/live/example.com/
+    certbot_dest_dir: /opt/shared-certs/example.com
+    cf_api_token: "test-cloudflare-dns-token"
+    cf_tunnel_token: "test-cloudflare-tunnel-token"
+    caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
+    backup_keep_local: 7
+    backup_keep_remote: 14
+    deploy_node_neo_v2ray: localhost
+    deploy_node_zammad: localhost
+    deploy_node_postgres: localhost
+    deploy_node_mailcow: localhost
+    wg_network_cidr: "10.66.0.0/24"
+    wg_network_prefix: "10.66.0"
+    docker_proxy_cidr: "172.18.0.0/16"
+    wg_port: 51820
+    wg_dns: "1.1.1.1"
+    ansible_default_ipv4:
+      interface: eth0
+    wg_servers:
+      local:
+        hostname: localhost
+        endpoint: localhost
+        ip_suffix: 1
+        pub: "REPLACE_ME_WG_SERVER_PUBLIC_KEY"
+        priv: "REPLACE_ME_WG_SERVER_PRIVATE_KEY"
+      peer:
+        hostname: peer.example.com
+        endpoint: peer.example.com
+        ip_suffix: 2
+        pub: "REPLACE_ME_WG_PEER_PUBLIC_KEY"
+        priv: "REPLACE_ME_WG_PEER_PRIVATE_KEY"
+    wg_clients:
+      phone:
+        ip_suffix: 101
+        pub: "REPLACE_ME_CLIENT_PUBLIC_KEY"
+        priv: "REPLACE_ME_CLIENT_PRIVATE_KEY"
+    pg_user: postgres
+    pg_password: "REPLACE_ME_POSTGRES_PASSWORD"
+    pg_admin_password: "REPLACE_ME_POSTGRES_ADMIN_PASSWORD"
+    pg_db_name: app
+    pg_data_dir: /opt/postgres/data
+    pg_custom_dir: /opt/postgres/custom_data
+    mailcow_version: "test-mailcow-tag"
+    v2ray_client_id: "00000000-0000-0000-0000-000000000000"
+    xray_client_id: "00000000-0000-0000-0000-000000000000"
+    xray_reality_dest: "www.example.com:443"
+    xray_reality_server_names:
+      - www.example.com
+    xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
+    xray_reality_short_ids:
+      - "0123456789abcdef"
+    neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
+    ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
+    neo_ssh_user: remote-user
+    neo_ssh_host: compute.example.com
+    neo_ssh_port: 22
+    config_templates:
+      - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
+        dest: json/docker-daemon.json
+      - src: "{{ repo_root }}/roles/apps/v2ray/templates/config.json.j2"
+        dest: json/v2ray-config.json
+      - src: "{{ repo_root }}/roles/apps/xray/templates/config.json.j2"
+        dest: json/xray-config.json
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/docker-compose.yml.j2"
+        dest: compose/caddy.yml
+      - src: "{{ repo_root }}/roles/apps/v2ray/templates/docker-compose.yml.j2"
+        dest: compose/v2ray.yml
+      - src: "{{ repo_root }}/roles/apps/xray/templates/docker-compose.yml.j2"
+        dest: compose/xray.yml
+      - src: "{{ repo_root }}/roles/apps/neo_backend/templates/docker-compose.yml.j2"
+        dest: compose/neo_backend.yml
+      - src: "{{ repo_root }}/roles/apps/postgres/templates/docker-compose.yml.j2"
+        dest: compose/postgres.yml
+      - src: "{{ repo_root }}/roles/apps/zammad/templates/docker-compose.yml.j2"
+        dest: compose/zammad.yml
+      - src: "{{ repo_root }}/roles/apps/cloudflared/templates/docker-compose.yml.j2"
+        dest: compose/cloudflared.yml
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
+        dest: caddy/Caddyfile
+      - src: "{{ repo_root }}/roles/gateway/certbot/templates/cloudflare.ini.j2"
+        dest: certbot/cloudflare.ini
+      - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
+        dest: wireguard/wg0.conf
+    shell_templates:
+      - src: "{{ repo_root }}/roles/gateway/caddy/templates/caddy_backup.sh.j2"
+        dest: shell/caddy_backup.sh
+      - src: "{{ repo_root }}/roles/gateway/certbot/templates/sync_certs.sh.j2"
+        dest: shell/sync_certs.sh
+      - src: "{{ repo_root }}/roles/apps/mailcow/templates/mailcow_backup.sh.j2"
+        dest: shell/mailcow_backup.sh
+      - src: "{{ repo_root }}/roles/apps/postgres/templates/pg_backup_all.sh.j2"
+        dest: shell/pg_backup_all.sh
+      - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_sync.sh.j2"
+        dest: shell/zammad_sync.sh
+  tasks:
+    - name: Create render directories
+      ansible.builtin.file:
+        path: "{{ render_dir }}/{{ item }}"
+        state: directory
+        mode: "0700"
+      loop:
+        - json
+        - compose
+        - caddy
+        - certbot
+        - wireguard
+        - shell
+
+    - name: Render config templates
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ render_dir }}/{{ item.dest }}"
+        mode: "0600"
+      loop: "{{ config_templates }}"
+
+    - name: Render shell templates
+      ansible.builtin.template:
+        src: "{{ item.src }}"
+        dest: "{{ render_dir }}/{{ item.dest }}"
+        mode: "0700"
+      loop: "{{ shell_templates }}"
+
+    - name: Render WireGuard client template
+      ansible.builtin.template:
+        src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/client_config.conf.j2"
+        dest: "{{ render_dir }}/wireguard/client_phone_local.conf"
+        mode: "0600"
+      vars:
+        item:
+          - key: phone
+            value: "{{ wg_clients.phone }}"
+          - key: local
+            value: "{{ wg_servers.local }}"

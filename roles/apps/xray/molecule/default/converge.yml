@@ -1,0 +1,22 @@
+---
+- name: Converge
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    xray_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/xray"
+    xray_owner: "{{ lookup('pipe', 'id -un') }}"
+    xray_group: "{{ lookup('pipe', 'id -gn') }}"
+    xray_manage_runtime: false
+    xray_image: "ghcr.io/xtls/xray-core:test"
+    xray_client_id: "00000000-0000-0000-0000-000000000000"
+    xray_reality_dest: "www.example.com:443"
+    xray_reality_server_names:
+      - www.example.com
+    xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
+    xray_reality_short_ids:
+      - "0123456789abcdef"
+  tasks:
+    - name: Apply Xray role in template-only mode
+      ansible.builtin.include_role:
+        name: "{{ playbook_dir }}/../.."

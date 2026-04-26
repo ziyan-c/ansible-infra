@@ -1,2 +1,6 @@
 ---
 xray_image: "ghcr.io/xtls/xray-core:25.8.3"
+xray_project_dir: /opt/xray
+xray_owner: root
+xray_group: root
+xray_manage_runtime: true

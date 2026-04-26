@@ -1,18 +1,18 @@
 ---
 - name: 创建 Xray 工作目录
   file:
-    path: /opt/xray
+    path: "{{ xray_project_dir }}"
     state: directory
-    owner: root
-    group: root
+    owner: "{{ xray_owner }}"
+    group: "{{ xray_group }}"
     mode: '0755'
 
 - name: 下发 Xray 配置文件 (config.json)
   template:
     src: config.json.j2
-    dest: /opt/xray/config.json
-    owner: root
-    group: root
+    dest: "{{ xray_project_dir }}/config.json"
+    owner: "{{ xray_owner }}"
+    group: "{{ xray_group }}"
     mode: '0644'
   notify: Restart Xray
   no_log: true
@@ -20,13 +20,14 @@
 - name: 下发 Xray Docker Compose 文件
   template:
     src: docker-compose.yml.j2
-    dest: /opt/xray/docker-compose.yml
-    owner: root
-    group: root
+    dest: "{{ xray_project_dir }}/docker-compose.yml"
+    owner: "{{ xray_owner }}"
+    group: "{{ xray_group }}"
     mode: '0644'
   notify: Restart Xray
 
 - name: 启动 Xray 容器
   community.docker.docker_compose_v2:
-    project_src: /opt/xray
+    project_src: "{{ xray_project_dir }}"
     state: present
+  when: xray_manage_runtime | bool

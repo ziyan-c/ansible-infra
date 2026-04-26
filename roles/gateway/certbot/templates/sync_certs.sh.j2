@@ -6,11 +6,12 @@ set -e  # 👈 加上这行！以后只要 rsync 失败，脚本立刻自爆，A
 # =========================================================
 
 # 1. 路径定义
-SOURCE_DIR="{{ certbot_source_dir | default('/etc/letsencrypt/live/' ~ base_domain ~ '/') }}"
-DEST_DIR="{{ certbot_dest_dir }}"
+SOURCE_DIR="${CERTBOT_SOURCE_DIR:-{{ certbot_source_dir | default('/etc/letsencrypt/live/' ~ base_domain ~ '/') }}}"
+DEST_DIR="${CERTBOT_DEST_DIR:-{{ certbot_dest_dir }}}"
+KNOWN_HOSTS="${CERTBOT_KNOWN_HOSTS:-/root/.ssh/known_hosts}"
 SSH_OPTS=(
   -o StrictHostKeyChecking=yes
-  -o UserKnownHostsFile=/root/.ssh/known_hosts
+  -o UserKnownHostsFile="$KNOWN_HOSTS"
 )
 
 # 2. 动态获取边缘节点列表 (从 Ansible Inventory 解析)
@@ -32,7 +33,7 @@ for SERVER in "${SERVERS[@]}"; do
     rsync -avzL --delete \
       --chown=999:999 \
       --chmod=D755,F600 \
-      -e "ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/root/.ssh/known_hosts" \
+      -e "ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS" \
       "$SOURCE_DIR" "$SERVER:$DEST_DIR"
     
     # 同步完成后，通知远端重启 Xray 等代理服务加载新证书

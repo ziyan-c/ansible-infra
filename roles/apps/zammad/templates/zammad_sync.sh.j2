@@ -3,12 +3,13 @@
 # Zammad 自动化备份脚本 (原生清理 + 本地/云端解耦版)
 # ==========================================
 
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH="${ANSIBLE_INFRA_SCRIPT_PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
 
 # --- 1. 配置变量 ---
 ROLE_NAME="zammad"
 GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+ZAMMAD_DIR="${ZAMMAD_DIR:-/opt/zammad}"
 
 # 云端保留份数依然需要脚本自己处理 (Zammad 管不到网盘)
 KEEP_REMOTE={{ backup_keep_remote }}
@@ -21,7 +22,7 @@ case "$1" in
     local)
         echo "[$TIMESTAMP] --- 执行阶段: 本地全量备份 (依赖 HOLD_DAYS 自动清理) ---"
         # 必须先进入 compose 目录，且使用 -T 取消 TTY 分配（Cron 环境下没有 TTY 会报错）
-        cd /opt/zammad || exit 1
+        cd "$ZAMMAD_DIR" || exit 1
         if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/scripts/zammad_backup.sh; then
             echo "[$TIMESTAMP] ✅ Zammad 本地备份与内置垃圾回收成功！"
         else

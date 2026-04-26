@@ -1,0 +1,27 @@
+---
+- name: Verify
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    neo_backend_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/neo_backend"
+  tasks:
+    - name: Check rendered compose file exists
+      ansible.builtin.stat:
+        path: "{{ neo_backend_project_dir }}/docker-compose.yml"
+      register: neo_backend_compose
+
+    - name: Assert rendered compose file exists
+      ansible.builtin.assert:
+        that:
+          - neo_backend_compose.stat.exists
+
+    - name: Validate rendered compose file
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ neo_backend_project_dir }}/docker-compose.yml config"
+      changed_when: false
+
+    - name: Check WireGuard host aliases were rendered
+      ansible.builtin.command:
+        cmd: "grep -F 'peer:10.66.0.2' {{ neo_backend_project_dir }}/docker-compose.yml"
+      changed_when: false

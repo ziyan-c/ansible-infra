@@ -1,0 +1,78 @@
+---
+- name: Verify rendered repository templates
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    render_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/rendered"
+  tasks:
+    - name: Find rendered JSON files
+      ansible.builtin.find:
+        paths: "{{ render_dir }}/json"
+        patterns: "*.json"
+      register: rendered_json
+
+    - name: Validate rendered JSON files
+      ansible.builtin.command:
+        cmd: "jq -e . {{ item.path }}"
+      loop: "{{ rendered_json.files }}"
+      changed_when: false
+
+    - name: Find rendered compose files
+      ansible.builtin.find:
+        paths: "{{ render_dir }}/compose"
+        patterns: "*.yml"
+      register: rendered_compose
+
+    - name: Validate rendered compose files
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ item.path }} config"
+      loop: "{{ rendered_compose.files }}"
+      changed_when: false
+      environment:
+        RAILS_TRUSTED_PROXIES: '["127.0.0.1","172.16.0.0/12","172.18.0.0/16"]'
+        ZAMMAD_FQDN: support.example.com
+        ZAMMAD_HTTP_TYPE: https
+
+    - name: Find rendered shell files
+      ansible.builtin.find:
+        paths: "{{ render_dir }}/shell"
+        patterns: "*.sh"
+      register: rendered_shell
+
+    - name: Validate rendered shell syntax
+      ansible.builtin.command:
+        cmd: "bash -n {{ item.path }}"
+      loop: "{{ rendered_shell.files }}"
+      changed_when: false
+
+    - name: Check rendered shell files with ShellCheck when available
+      ansible.builtin.shell: |
+        if command -v shellcheck >/dev/null 2>&1; then
+          shellcheck {% for file in rendered_shell.files %}{{ file.path | quote }} {% endfor %}
+        else
+          echo "shellcheck not found; skipped shellcheck"
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Check Caddyfile includes both dynamic virtual hosts
+      ansible.builtin.command:
+        cmd: "grep -E '^(example\\.com|support\\.example\\.com|v2ray\\.example\\.com)' {{ render_dir }}/caddy/Caddyfile"
+      changed_when: false
+
+    - name: Check Certbot Cloudflare credential output
+      ansible.builtin.command:
+        cmd: "grep -F 'dns_cloudflare_api_token = test-cloudflare-dns-token' {{ render_dir }}/certbot/cloudflare.ini"
+      changed_when: false
+
+    - name: Check WireGuard server output
+      ansible.builtin.command:
+        cmd: "grep -F 'Address = 10.66.0.1/24' {{ render_dir }}/wireguard/wg0.conf"
+      changed_when: false
+
+    - name: Check WireGuard client output
+      ansible.builtin.command:
+        cmd: "grep -F 'Endpoint = localhost:51820' {{ render_dir }}/wireguard/client_phone_local.conf"
+      changed_when: false

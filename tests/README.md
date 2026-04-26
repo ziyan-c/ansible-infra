@@ -19,9 +19,10 @@ make test-all
 The suite covers:
 
 - Python unit tests for local helper scripts.
+- Python behavior tests for Bash helper scripts.
+- Python behavior tests for rendered backup and certificate sync scripts.
 - Bash syntax checks for committed `.sh` files.
 - Rendered Bash syntax checks for Ansible `.sh.j2` templates.
-- Bats behavior tests for local Bash helpers.
 - YAML formatting checks with `yamllint`.
 - Shell formatting checks with `shfmt` for committed `.sh` files.
 - Rendered JSON template checks with `jq`.
@@ -30,4 +31,5 @@ The suite covers:
   WireGuard node mappings.
 - `shellcheck` when it is installed locally.
 - Ansible inventory loading, playbook syntax checks, and `ansible-lint`.
-- A V2ray Molecule template-convergence scenario in `make test-all`.
+- A repository-wide Molecule template scenario plus role-level Molecule
+  scenarios for V2ray, Xray, Cloudflared, and Neo Backend in `make test-all`.

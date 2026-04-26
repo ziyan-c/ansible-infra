@@ -1,5 +1,6 @@
 ---
 - name: Restart Cloudflared
   community.docker.docker_compose_v2:
-    project_src: /opt/cloudflared
+    project_src: "{{ cloudflared_project_dir }}"
     state: restarted
+  when: cloudflared_manage_runtime | bool

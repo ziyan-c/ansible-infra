@@ -1,2 +1,6 @@
 ---
 cloudflared_image: "cloudflare/cloudflared:2026.3.0"
+cloudflared_project_dir: /opt/cloudflared
+cloudflared_owner: root
+cloudflared_group: root
+cloudflared_manage_runtime: true

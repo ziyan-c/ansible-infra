@@ -1,5 +1,6 @@
 ---
 - name: Restart Neo-Backend
   community.docker.docker_compose_v2:
-    project_src: /opt/neo_backend
+    project_src: "{{ neo_backend_project_dir }}"
     state: restarted
+  when: neo_backend_manage_runtime | bool

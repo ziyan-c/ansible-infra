@@ -1,0 +1,33 @@
+---
+- name: Verify
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    xray_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/xray"
+  tasks:
+    - name: Check rendered Xray config exists
+      ansible.builtin.stat:
+        path: "{{ xray_project_dir }}/config.json"
+      register: xray_config
+
+    - name: Check rendered compose file exists
+      ansible.builtin.stat:
+        path: "{{ xray_project_dir }}/docker-compose.yml"
+      register: xray_compose
+
+    - name: Assert rendered files exist
+      ansible.builtin.assert:
+        that:
+          - xray_config.stat.exists
+          - xray_compose.stat.exists
+
+    - name: Validate rendered Xray config JSON
+      ansible.builtin.command:
+        cmd: "jq -e . {{ xray_project_dir }}/config.json"
+      changed_when: false
+
+    - name: Validate rendered compose file
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ xray_project_dir }}/docker-compose.yml config"
+      changed_when: false
