@@ -1,0 +1,15 @@
+---
+ansible:
+  env:
+    ANSIBLE_FORCE_COLOR: "1"
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+
+scenario:
+  name: default
+  test_sequence:
+    - syntax
+    - converge
+    - idempotence
+    - verify

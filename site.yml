@@ -79,14 +79,14 @@
       tags: ['zammad', 'apps']
 
 - name: 部署 Cloudflare Tunnel 接入点
-  hosts: tunnel_nodes   
+  hosts: tunnel_nodes
   become: yes
   roles:
     - role: apps/cloudflared
       tags: ['cloudflared', 'tunnel', 'apps']
 
 
-      
+
 # 把最后这一块全部用 # 注释掉
 # - name: 部署 AI 服务网关与隧道
 #   hosts: neo_backend_nodes

@@ -46,7 +46,7 @@
     permanent: yes
     state: enabled
     immediate: yes
-  #ignore_errors: yes # 防止没装 firewalld 时报错
+  # ignore_errors: yes # 防止没装 firewalld 时报错
 
 # 👇 新增这个任务：信任 wg0 内网的所有流量
 - name: 将 WireGuard 虚拟网卡加入 trusted 区域
@@ -98,9 +98,9 @@
   shell: >
     umask 077 &&
     qrencode -t png
-    -o "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png" 
+    -o "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.png"
     < "{{ playbook_dir }}/.local/wg-clients/{{ item[0].key }}/{{ item[0].key }}_{{ item[1].key }}.conf"
-  when: 
+  when:
     - qrencode_check is defined
     - qrencode_check.rc | default(1) == 0
   loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"

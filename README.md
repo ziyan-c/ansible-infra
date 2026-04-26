@@ -70,7 +70,14 @@ make test
 ```
 
 This checks Python helpers, committed Bash scripts, rendered Bash templates,
+rendered JSON and Docker Compose templates, inventory contracts, formatting,
 Ansible inventory loading, playbook syntax, and `ansible-lint`.
+
+Run the extended suite, including Molecule:
+
+```bash
+make test-all
+```
 
 Run everything:
 

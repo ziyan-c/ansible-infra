@@ -1,23 +1,24 @@
 ---
 - name: 创建 V2ray 工作目录
   file:
-    path: /opt/v2ray
+    path: "{{ v2ray_project_dir }}"
     state: directory
-    owner: root
-    group: root
+    owner: "{{ v2ray_owner }}"
+    group: "{{ v2ray_group }}"
     mode: '0755'
 
 - name: 确保外部网络 web-proxy 存在
   community.docker.docker_network:
     name: web-proxy
     state: present
+  when: v2ray_manage_runtime | bool
 
 - name: 下发 V2ray 配置文件 (config.json)
   template:
     src: config.json.j2
-    dest: /opt/v2ray/config.json
-    owner: root
-    group: root
+    dest: "{{ v2ray_project_dir }}/config.json"
+    owner: "{{ v2ray_owner }}"
+    group: "{{ v2ray_group }}"
     mode: '0644'
   notify: Restart V2ray
   no_log: true
@@ -25,13 +26,14 @@
 - name: 下发 V2ray Docker Compose 文件
   template:
     src: docker-compose.yml.j2
-    dest: /opt/v2ray/docker-compose.yml
-    owner: root
-    group: root
+    dest: "{{ v2ray_project_dir }}/docker-compose.yml"
+    owner: "{{ v2ray_owner }}"
+    group: "{{ v2ray_group }}"
     mode: '0644'
   notify: Restart V2ray
 
 - name: 启动 V2ray 容器
   community.docker.docker_compose_v2:
-    project_src: /opt/v2ray
+    project_src: "{{ v2ray_project_dir }}"
     state: present
+  when: v2ray_manage_runtime | bool

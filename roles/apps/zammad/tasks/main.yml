@@ -56,7 +56,7 @@
 - name: 强行将 Zammad 附件存储模式改为 File System，并迁移存量数据
   ansible.builtin.shell: |
     docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r "
-    Setting.set('storage_provider', 'File'); 
+    Setting.set('storage_provider', 'File');
     Store::File.move('DB', 'File') if Store::File.where(provider: 'DB').exists?
     "
   args:

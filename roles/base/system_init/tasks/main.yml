@@ -29,7 +29,7 @@
       - mariadb-client
       - iproute2
       - firewalld
-      - rsync 
+      - rsync
       - postgresql-client
     state: present
 
@@ -224,7 +224,7 @@
   register: root_pw_file
 
 - name: 随机生成 Root 密码并保存
-  when: 
+  when:
     - rotate_root_password | default(false) | bool
     - not root_pw_file.stat.exists
   no_log: true
@@ -232,12 +232,12 @@
     - name: 生成 42 字符随机密码
       set_fact:
         new_root_password: "{{ lookup('password', '/dev/null length=42 chars=ascii_letters,digits') }}"
-    
+
     - name: 更新 root 密码
       user:
         name: root
         password: "{{ new_root_password | password_hash('sha512') }}"
-        
+
     - name: 保存密码到文件
       copy:
         dest: /root/.new-root-password
@@ -253,7 +253,7 @@
     marker: "# {mark} ANSIBLE MANAGED WIREGUARD HOSTS"
     block: |
       {% for name, srv in wg_servers.items() %}
-      {{ wg_network_prefix }}.{{ srv.ip_suffix }}    {{ srv.hostname.split('.')[0] }} 
+      {{ wg_network_prefix }}.{{ srv.ip_suffix }}    {{ srv.hostname.split('.')[0] }}
       {% endfor %}
 
 
