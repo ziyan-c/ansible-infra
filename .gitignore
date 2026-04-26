@@ -7,6 +7,19 @@
 # 可能的临时打包文件
 .local.tar.gz
 
+# Encrypted public backup bundle is intentionally tracked; keep its password private.
+*.vault
+!.local_encrypted.vault
+
+# 常见私钥 / 环境变量 / 证书材料
+.env
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+vault_password
+
 # Python / Ansible local noise
 __pycache__/
 *.py[cod]

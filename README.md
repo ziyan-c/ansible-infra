@@ -103,8 +103,11 @@ Create or refresh the encrypted private-state bundle:
 ./encrypt_.local_folder.sh
 ```
 
-Keep `.local/` out of git. Do not paste rendered files from `.local/` into issue
-threads, logs, or generated context dumps.
+`.local_encrypted.vault` is intended to be committed as encrypted ciphertext.
+Keep `.local/` and `.local/vault_password` out of git; use a strong unique
+vault password such as one generated with `openssl rand -base64 32`. Do not
+paste rendered files from `.local/` into issue threads, logs, or generated
+context dumps.
 
 ## Safety Notes
 
