@@ -90,23 +90,62 @@
     group: root
     mode: '0700'
 
-# 👇 新增：优雅的跨节点等幂性检查逻辑
 - name: 检查边缘节点是否已存在证书
   ansible.builtin.stat:
     path: "{{ certbot_dest_dir }}/fullchain.pem"
   delegate_to: "{{ item }}"
   loop: "{{ groups['edge_nodes'] }}"
   register: edge_cert_status
-  # 这里忽略错误，防止边缘节点网络波动导致整个剧本卡死
-  ignore_errors: yes
+  failed_when: false
+  changed_when: false
+  ignore_unreachable: true
+
+- name: 提示边缘节点证书状态检查失败
+  ansible.builtin.debug:
+    msg: >-
+      Skipping certificate-missing decision for edge nodes that could not be
+      checked: {{
+        edge_cert_status.results
+        | default([])
+        | selectattr('failed', 'defined')
+        | selectattr('failed')
+        | map(attribute='item')
+        | list
+      }}
+  when: >
+    edge_cert_status.results | default([])
+    | selectattr('failed', 'defined')
+    | selectattr('failed')
+    | list
+    | length > 0
+
+- name: 提示边缘节点不可达
+  ansible.builtin.debug:
+    msg: >-
+      Skipping certificate-missing decision for unreachable edge nodes: {{
+        edge_cert_status.results
+        | default([])
+        | selectattr('unreachable', 'defined')
+        | selectattr('unreachable')
+        | map(attribute='item')
+        | list
+      }}
+  when: >
+    edge_cert_status.results | default([])
+    | selectattr('unreachable', 'defined')
+    | selectattr('unreachable')
+    | list
+    | length > 0
 
 - name: 立即执行一次证书同步 (仅当主节点刚申请，或边缘节点确实丢失时触发)
   command: /etc/letsencrypt/renewal-hooks/deploy/sync_certs.sh
   when: >
     not cert_check.stat.exists or
-    (edge_cert_status.results | default([]) | rejectattr('stat.exists', 'defined') | list | length > 0) or
-    (edge_cert_status.results | default([]) | rejectattr('stat.exists') | list | length > 0)
-  # 条件解释：
-  # 1. 主节点本身没有证书 (首次申请)
-  # 2. 或者状态检查失败 (稳妥起见，视为缺失)
-  # 3. 或者有任何一个边缘节点的 stat.exists 为 false
+    (
+      edge_cert_status.results
+      | default([])
+      | selectattr('stat.exists', 'defined')
+      | selectattr('stat.exists', 'equalto', false)
+      | list
+      | length > 0
+    )

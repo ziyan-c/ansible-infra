@@ -3,3 +3,4 @@
 system_dist_upgrade_enabled: true
 system_disable_ufw_apparmor: true
 root_authorized_keys_exclusive: false
+rclone_config_force_update: false

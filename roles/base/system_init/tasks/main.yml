@@ -280,5 +280,5 @@
     owner: root
     group: root
     mode: '0600'
-    force: no  # 👈 极其关键！禁止覆盖！让 Rclone 自己维护后续的 Token 刷新！
+    force: "{{ rclone_config_force_update | bool }}"
   no_log: true

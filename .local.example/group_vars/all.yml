@@ -69,6 +69,7 @@ rclone_config_content: |
   type = drive
   scope = drive
   token = REPLACE_ME_RCLONE_TOKEN_JSON
+rclone_config_force_update: false
 
 pg_user: postgres
 pg_password: "REPLACE_ME_POSTGRES_PASSWORD"

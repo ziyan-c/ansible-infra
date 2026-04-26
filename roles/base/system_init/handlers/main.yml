@@ -1,11 +1,26 @@
 ---
-- name: Restart SSH
-  systemd:
-    name: ssh
+- name: Gather SSH service facts
+  ansible.builtin.service_facts:
+  listen: Restart SSH
+
+- name: Restart available SSH service
+  ansible.builtin.systemd:
+    name: "{{ 'ssh' if 'ssh.service' in ansible_facts.services else 'sshd' }}"
     state: restarted
-  ignore_errors: yes # 兼容不同的 sshd 命名规则
+  when: >
+    'ssh.service' in ansible_facts.services or
+    'sshd.service' in ansible_facts.services
+  listen: Restart SSH
+
+- name: Fail when SSH service is unknown
+  ansible.builtin.fail:
+    msg: "Could not restart SSH: neither ssh.service nor sshd.service exists."
+  when: >
+    'ssh.service' not in ansible_facts.services and
+    'sshd.service' not in ansible_facts.services
+  listen: Restart SSH
 
 - name: Restart Journald
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-journald
     state: restarted
