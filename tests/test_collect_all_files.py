@@ -15,6 +15,12 @@ def test_default_skips_local_and_binary_like_files(tmp_path):
     (root / ".git" / "config").write_text("git internals\n", encoding="utf-8")
     (root / ".local").mkdir()
     (root / ".local" / "token.txt").write_text("private token\n", encoding="utf-8")
+    (root / ".ansible").mkdir()
+    (root / ".ansible" / "cache.yml").write_text("ansible cache\n", encoding="utf-8")
+    (root / ".pytest_cache").mkdir()
+    (root / ".pytest_cache" / "state").write_text("pytest cache\n", encoding="utf-8")
+    (root / "__pycache__").mkdir()
+    (root / "__pycache__" / "helper.pyc").write_text("python cache\n", encoding="utf-8")
 
     with contextlib.redirect_stdout(io.StringIO()):
         output_path = merge_contents("all_files.txt", project_root=root)
@@ -25,6 +31,9 @@ def test_default_skips_local_and_binary_like_files(tmp_path):
     assert "private token" not in output
     assert "vault payload" not in output
     assert "git internals" not in output
+    assert "ansible cache" not in output
+    assert "pytest cache" not in output
+    assert "python cache" not in output
 
 
 def test_include_local_follows_local_symlink_when_requested(tmp_path):

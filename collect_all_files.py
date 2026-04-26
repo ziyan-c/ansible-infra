@@ -1,6 +1,25 @@
 import os
 import pathlib
 
+
+DEFAULT_IGNORED_DIRS = {
+    ".ansible",
+    ".cache",
+    ".git",
+    ".mypy_cache",
+    ".nox",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+}
+
+
 def merge_contents(output_filename="all_files.txt", include_local=False, project_root=None):
     """
     合并项目内所有文件内容。
@@ -26,7 +45,7 @@ def merge_contents(output_filename="all_files.txt", include_local=False, project
     count = 0
     
     # 👇 根据你的参数，动态决定要不要忽略 .local
-    ignored_dirs = {'.git'}
+    ignored_dirs = set(DEFAULT_IGNORED_DIRS)
     if not include_local:
         ignored_dirs.add('.local')
         print("🛑 模式: [跳过] .local 文件夹。")
