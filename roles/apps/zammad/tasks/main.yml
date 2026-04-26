@@ -19,6 +19,7 @@
     owner: root
     group: root
     mode: '0600'
+  register: zammad_env_template
   notify: Restart Zammad
   no_log: true
 
@@ -29,14 +30,85 @@
     owner: root
     group: root
     mode: '0644'
+  register: zammad_compose_template
   notify: Restart Zammad
 
 # 第一次启动 Zammad 会非常慢，因为 init 容器需要跑数据库迁移
+- name: 启动 Zammad 基础依赖服务
+  community.docker.docker_compose_v2:
+    project_src: /opt/zammad
+    state: present
+    pull: missing
+    services:
+      - zammad-elasticsearch
+      - zammad-memcached
+      - zammad-postgresql
+      - zammad-redis
+
+- name: 等待 Zammad PostgreSQL 就绪
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - zammad-postgresql
+      - sh
+      - -lc
+      - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+  args:
+    chdir: /opt/zammad
+  register: zammad_postgres_ready
+  until: zammad_postgres_ready.rc == 0
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: 查询 Zammad 数据库是否已初始化
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - exec
+      - -T
+      - zammad-postgresql
+      - sh
+      - -lc
+      - psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "select case when to_regclass('public.settings') is null then 'absent' else 'present' end;"
+  args:
+    chdir: /opt/zammad
+  register: zammad_db_schema
+  changed_when: false
+  failed_when: false
+
+- name: 执行 Zammad 初始化/迁移容器
+  ansible.builtin.command: docker compose run --rm -T zammad-init
+  args:
+    chdir: /opt/zammad
+  register: zammad_init_run
+  changed_when: true
+  when:
+    - >
+      zammad_db_schema.rc != 0 or
+      'present' not in (zammad_db_schema.stdout_lines | default([])) or
+      (zammad_env_template.changed | default(false) | bool) or
+      (zammad_compose_template.changed | default(false) | bool)
+
 - name: 启动 Zammad 容器栈
   community.docker.docker_compose_v2:
     project_src: /opt/zammad
     state: present
     pull: missing
+    services:
+      - zammad-backup
+      - zammad-elasticsearch
+      - zammad-memcached
+      - zammad-nginx
+      - zammad-postgresql
+      - zammad-railsserver
+      - zammad-redis
+      - zammad-scheduler
+      - zammad-websocket
 
 
 # ==========================================
@@ -56,8 +128,8 @@
 - name: 查询 Zammad 附件存储状态
   ansible.builtin.command: >
     docker compose exec -T zammad-railsserver /opt/zammad/bin/rails r
-    "puts Setting.get('storage_provider').to_s;
-    puts(Store::File.where(provider: 'DB').exists? ? 'db_store_present' : 'db_store_absent')"
+    "puts '__ANSIBLE_ZAMMAD_STORAGE_PROVIDER__=' + Setting.get('storage_provider').to_s;
+    puts(Store::File.where(provider: 'DB').exists? ? '__ANSIBLE_ZAMMAD_DB_STORE__=present' : '__ANSIBLE_ZAMMAD_DB_STORE__=absent')"
   args:
     chdir: /opt/zammad
   register: zammad_storage_status
@@ -77,8 +149,8 @@
   when:
     - zammad_ready.rc == 0
     - >
-      zammad_storage_status.stdout_lines | default([]) | first | default('') != 'File' or
-      'db_store_present' in (zammad_storage_status.stdout_lines | default([]))
+      '__ANSIBLE_ZAMMAD_STORAGE_PROVIDER__=File' not in (zammad_storage_status.stdout_lines | default([])) or
+      '__ANSIBLE_ZAMMAD_DB_STORE__=present' in (zammad_storage_status.stdout_lines | default([]))
 
 - name: 打印存储修改结果
   debug:
