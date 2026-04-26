@@ -1,4 +1,4 @@
-ANSIBLE_ENV = ANSIBLE_HOME=$(CURDIR)/.ansible ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ANSIBLE_REMOTE_TEMP=/tmp/ansible-remote ANSIBLE_COLLECTIONS_PATH=$(CURDIR)/.ansible/collections
+ANSIBLE_ENV = ANSIBLE_HOME=$(CURDIR)/.ansible ANSIBLE_LOCAL_TEMP=/tmp/ansible-local ANSIBLE_REMOTE_TEMP=/tmp/ansible-remote ANSIBLE_COLLECTIONS_PATH=$(CURDIR)/.ansible/collections ANSIBLE_VAULT_PASSWORD_FILE=$(CURDIR)/.local.example/vault_password
 MOLECULE_ENV = $(ANSIBLE_ENV)
 
 .PHONY: test test-all test-python test-pytest test-bash test-format test-templates test-ansible test-molecule lint syntax inventory
@@ -8,7 +8,7 @@ test: test-python test-bash test-format test-templates test-ansible
 test-all: test test-molecule
 
 test-python:
-	pytest tests
+	$(ANSIBLE_ENV) pytest tests
 
 test-pytest: test-python
 

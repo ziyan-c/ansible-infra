@@ -20,6 +20,9 @@ def render_root(tmp_path_factory):
             "ANSIBLE_LOCAL_TEMP": "/tmp/ansible-local",
             "ANSIBLE_REMOTE_TEMP": "/tmp/ansible-remote",
             "ANSIBLE_COLLECTIONS_PATH": str(REPO_ROOT / ".ansible/collections"),
+            "ANSIBLE_VAULT_PASSWORD_FILE": str(
+                REPO_ROOT / ".local.example/vault_password"
+            ),
             "TEST_RENDER_DIR": str(render_dir),
         }
     )

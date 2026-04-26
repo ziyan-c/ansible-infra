@@ -19,6 +19,10 @@ def run_json(command):
     env.setdefault("ANSIBLE_HOME", str(REPO_ROOT / ".ansible"))
     env.setdefault("ANSIBLE_LOCAL_TEMP", "/tmp/ansible-local")
     env.setdefault("ANSIBLE_REMOTE_TEMP", "/tmp/ansible-remote")
+    env.setdefault(
+        "ANSIBLE_VAULT_PASSWORD_FILE",
+        str(REPO_ROOT / ".local.example/vault_password"),
+    )
 
     result = subprocess.run(
         command,
