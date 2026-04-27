@@ -71,3 +71,31 @@ def test_zammad_init_runs_separately_when_database_needs_it():
     assert "docker compose run --rm -T zammad-init" in tasks
     assert "zammad_compose_template.changed" in tasks
     assert "zammad_env_template.changed" in tasks
+
+
+def test_backup_cron_schedules_are_declared_and_staggered():
+    postgres = read_role_file("roles/apps/postgres/tasks/main.yml")
+    mailcow = read_role_file("roles/apps/mailcow/tasks/main.yml")
+    caddy = read_role_file("roles/gateway/caddy/tasks/main.yml")
+    zammad = read_role_file("roles/apps/zammad/tasks/main.yml")
+
+    assert 'name: "Postgres Full Instance Backup"' in postgres
+    assert 'hour: "3,15"' in postgres
+    assert "/opt/postgres/pg_backup_all.sh" in postgres
+    assert "/etc/logrotate.d/pg_backup" in postgres
+
+    assert 'name: "Mailcow Full Backup"' in mailcow
+    assert 'hour: "4,16"' in mailcow
+    assert "/opt/mailcow-dockerized/mailcow_backup.sh" in mailcow
+    assert "/etc/logrotate.d/mailcow_backup" in mailcow
+
+    assert 'name: "Caddy Full Backup"' in caddy
+    assert 'hour: "5,17"' in caddy
+    assert "/opt/caddy/caddy_backup.sh" in caddy
+    assert "/etc/logrotate.d/caddy_backup" in caddy
+
+    assert 'name: "Zammad Local Backup"' in zammad
+    assert 'hour: "6"' in zammad
+    assert 'name: "Zammad Cloud Sync"' in zammad
+    assert 'hour: "18"' in zammad
+    assert "/etc/logrotate.d/zammad_sync" in zammad

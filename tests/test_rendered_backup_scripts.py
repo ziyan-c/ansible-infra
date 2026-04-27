@@ -1,4 +1,5 @@
 import os
+import re
 import stat
 import subprocess
 import textwrap
@@ -8,6 +9,7 @@ import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+BACKUP_TIMESTAMP = r"\d{8}_\d{6}"
 
 
 @pytest.fixture(scope="module")
@@ -104,7 +106,22 @@ class ScriptHarness:
               done
               exit 0
             fi
-            if [[ "$args" == *"-printf"* ]]; then
+            if [[ "$args" == *"-type f"* && "$args" == *"-name"* && "$args" == *"-printf"* ]]; then
+              root="$1"
+              pattern="*"
+              while [ "$#" -gt 0 ]; do
+                if [ "${1:-}" = "-name" ]; then
+                  pattern="$2"
+                  break
+                fi
+                shift
+              done
+              for candidate in "$root"/$pattern; do
+                if [ -f "$candidate" ]; then
+                  mtime="$(stat -c %Y "$candidate" 2>/dev/null || stat -f %m "$candidate")"
+                  printf '%s %s\\n' "$mtime" "$candidate"
+                fi
+              done
               exit 0
             fi
             exec /usr/bin/find "$@"
@@ -142,6 +159,17 @@ def script_harness(tmp_path, render_root):
     return ScriptHarness(tmp_path, render_root)
 
 
+def assert_name_matches(path, pattern):
+    assert re.fullmatch(pattern, path.name), path.name
+
+
+def create_old_backup(path, age_index):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("old backup\n", encoding="utf-8")
+    timestamp = 1_700_000_000 + age_index
+    os.utime(path, (timestamp, timestamp))
+
+
 def test_postgres_backup_success_creates_archives_and_uploads(script_harness):
     h = script_harness
     backup_dir = h.workdir / "postgres-backups"
@@ -171,8 +199,15 @@ def test_postgres_backup_success_creates_archives_and_uploads(script_harness):
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert len(list(backup_dir.glob("pg_sql_*.sql.gz"))) == 1
-    assert len(list(backup_dir.glob("pg_custom_data_*.tar.gz"))) == 1
+    sql_archives = list(backup_dir.glob("pg_sql_*.sql.gz"))
+    custom_archives = list(backup_dir.glob("pg_custom_data_*.tar.gz"))
+    assert len(sql_archives) == 1
+    assert len(custom_archives) == 1
+    assert_name_matches(sql_archives[0], rf"pg_sql_{BACKUP_TIMESTAMP}\.sql\.gz")
+    assert_name_matches(
+        custom_archives[0],
+        rf"pg_custom_data_{BACKUP_TIMESTAMP}\.tar\.gz",
+    )
     assert "copy" in (h.log_dir / "rclone.log").read_text(encoding="utf-8")
 
 
@@ -206,6 +241,53 @@ def test_postgres_backup_failure_removes_partial_archive_and_skips_upload(
     assert "SQL" in result.stdout + result.stderr
 
 
+def test_postgres_backup_prunes_local_archives_to_keep_limit(script_harness):
+    h = script_harness
+    backup_dir = h.workdir / "postgres-backups"
+    custom_dir = h.workdir / "custom-data"
+    custom_dir.mkdir()
+    (custom_dir / "asset.txt").write_text("custom asset\n", encoding="utf-8")
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "exec" ]; then
+          printf 'CREATE DATABASE app;\\n'
+          exit 0
+        fi
+        exit 0
+        """,
+    )
+
+    for index in range(8):
+        date_part = f"2020010{index + 1}"
+        create_old_backup(backup_dir / f"pg_sql_{date_part}_000000.sql.gz", index)
+        create_old_backup(
+            backup_dir / f"pg_custom_data_{date_part}_000000.tar.gz",
+            index,
+        )
+
+    result = h.run_script(
+        "pg_backup_all.sh",
+        env=h.script_env(
+            POSTGRES_BACKUP_DIR=backup_dir,
+            POSTGRES_CUSTOM_DATA_DIR=custom_dir,
+        ),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    sql_archives = sorted(backup_dir.glob("pg_sql_*.sql.gz"))
+    custom_archives = sorted(backup_dir.glob("pg_custom_data_*.tar.gz"))
+    assert len(sql_archives) == 7
+    assert len(custom_archives) == 7
+    assert not (backup_dir / "pg_sql_20200101_000000.sql.gz").exists()
+    assert not (backup_dir / "pg_sql_20200102_000000.sql.gz").exists()
+    assert not (backup_dir / "pg_custom_data_20200101_000000.tar.gz").exists()
+    assert not (backup_dir / "pg_custom_data_20200102_000000.tar.gz").exists()
+
+
 def test_caddy_backup_success_excludes_its_own_script(script_harness):
     h = script_harness
     caddy_dir = h.workdir / "caddy"
@@ -222,6 +304,7 @@ def test_caddy_backup_success_excludes_its_own_script(script_harness):
     assert result.returncode == 0, result.stdout + result.stderr
     archives = list(backup_dir.glob("caddy_backup_*.tar.gz"))
     assert len(archives) == 1
+    assert_name_matches(archives[0], rf"caddy_backup_{BACKUP_TIMESTAMP}\.tar\.gz")
     listing = subprocess.run(
         ["tar", "-tzf", str(archives[0])],
         check=False,
@@ -232,6 +315,31 @@ def test_caddy_backup_success_excludes_its_own_script(script_harness):
     assert listing.returncode == 0, listing.stdout + listing.stderr
     assert "caddy/Caddyfile" in listing.stdout
     assert "caddy/caddy_backup.sh" not in listing.stdout
+
+
+def test_caddy_backup_prunes_local_archives_to_keep_limit(script_harness):
+    h = script_harness
+    caddy_dir = h.workdir / "caddy"
+    caddy_dir.mkdir()
+    (caddy_dir / "Caddyfile").write_text("example.com\n", encoding="utf-8")
+    backup_dir = h.workdir / "caddy-backups"
+
+    for index in range(8):
+        create_old_backup(
+            backup_dir / f"caddy_backup_2020010{index + 1}_000000.tar.gz",
+            index,
+        )
+
+    result = h.run_script(
+        "caddy_backup.sh",
+        env=h.script_env(CADDY_TARGET_DIR=caddy_dir, CADDY_BACKUP_ROOT=backup_dir),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    archives = sorted(backup_dir.glob("caddy_backup_*.tar.gz"))
+    assert len(archives) == 7
+    assert not (backup_dir / "caddy_backup_20200101_000000.tar.gz").exists()
+    assert not (backup_dir / "caddy_backup_20200102_000000.tar.gz").exists()
 
 
 def test_mailcow_backup_success_packages_latest_backup_directory(script_harness):
@@ -267,6 +375,7 @@ def test_mailcow_backup_success_packages_latest_backup_directory(script_harness)
     assert result.returncode == 0, result.stdout + result.stderr
     archives = list(backup_dir.glob("mailcow_backup_*.tar.gz"))
     assert len(archives) == 1
+    assert_name_matches(archives[0], rf"mailcow_backup_{BACKUP_TIMESTAMP}\.tar\.gz")
     assert archives[0].stat().st_mode & stat.S_IRWXO == 0
     assert not (official_backup_dir / "mailcow-test").exists()
 
@@ -303,6 +412,49 @@ def test_mailcow_backup_failure_stops_before_packaging_and_upload(script_harness
     assert result.returncode == 1
     assert list(backup_dir.glob("mailcow_backup_*.tar.gz")) == []
     assert not (h.log_dir / "rclone.log").exists()
+
+
+def test_mailcow_backup_prunes_local_archives_to_keep_limit(script_harness):
+    h = script_harness
+    mailcow_dir = h.workdir / "mailcow"
+    helper_dir = mailcow_dir / "helper-scripts"
+    helper_dir.mkdir(parents=True)
+    helper = helper_dir / "backup_and_restore.sh"
+    helper.write_text(
+        textwrap.dedent(
+            """\
+            #!/usr/bin/env bash
+            set -euo pipefail
+            mkdir -p "$BACKUP_LOCATION/mailcow-test"
+            printf 'mailcow data\\n' > "$BACKUP_LOCATION/mailcow-test/data.txt"
+            """
+        ),
+        encoding="utf-8",
+    )
+    helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
+    backup_dir = h.workdir / "mailcow-backups"
+    official_backup_dir = h.workdir / "mailcow-backup-work"
+
+    for index in range(8):
+        create_old_backup(
+            backup_dir / f"mailcow_backup_2020010{index + 1}_000000.tar.gz",
+            index,
+        )
+
+    result = h.run_script(
+        "mailcow_backup.sh",
+        env=h.script_env(
+            MAILCOW_DIR=mailcow_dir,
+            MAILCOW_BACKUP_ROOT=backup_dir,
+            MAILCOW_OFFICIAL_BACKUP_ROOT=official_backup_dir,
+        ),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    archives = sorted(backup_dir.glob("mailcow_backup_*.tar.gz"))
+    assert len(archives) == 7
+    assert not (backup_dir / "mailcow_backup_20200101_000000.tar.gz").exists()
+    assert not (backup_dir / "mailcow_backup_20200102_000000.tar.gz").exists()
 
 
 def test_zammad_local_backup_runs_compose_backup_command(script_harness):
