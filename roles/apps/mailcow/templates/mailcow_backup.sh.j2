@@ -11,6 +11,7 @@ export PATH="${ANSIBLE_INFRA_SCRIPT_PATH:-/usr/local/sbin:/usr/local/bin:/usr/sb
 ROLE_NAME="mailcow"
 MAILCOW_DIR="${MAILCOW_DIR:-/opt/mailcow-dockerized}"
 BACKUP_ROOT="${MAILCOW_BACKUP_ROOT:-/opt/mailcow_backups}"
+OFFICIAL_BACKUP_ROOT="${MAILCOW_OFFICIAL_BACKUP_ROOT:-/opt/mailcow_backup_work}"
 GDRIVE_REMOTE="gdrive:AUTO_BACKUPS/${ROLE_NAME}"
 
 # 👇 引入 Ansible 全局变量
@@ -45,11 +46,13 @@ cleanup_remote_backups() {
 
 # --- 2. 执行官方备份 ---
 mkdir -p "$BACKUP_ROOT"
+mkdir -p "$OFFICIAL_BACKUP_ROOT"
+chmod 1777 "$OFFICIAL_BACKUP_ROOT"
 echo "[$TIMESTAMP] 开始执行 Mailcow 官方备份脚本..."
 
 # 👇 修复 2: 官方脚本识别的变量名叫 BACKUP_LOCATION，不是 MAILCOW_BACKUP_LOCATION！
 # 不改这个，脚本会在后台卡死，死等用户按键盘输入路径！
-export BACKUP_LOCATION="$BACKUP_ROOT"
+export BACKUP_LOCATION="$OFFICIAL_BACKUP_ROOT"
 cd "$MAILCOW_DIR" || exit 1
 
 # 👇 修复 3: 增加严格的错误拦截。如果不拦截，一旦前面崩溃了，后面还会打包一个空文件夹上传覆盖云端！
@@ -59,14 +62,15 @@ if ! ./helper-scripts/backup_and_restore.sh backup all; then
 fi
 
 # --- 3. 压缩打包 ---
-LATEST_BACKUP_DIR=$(find "$BACKUP_ROOT" -maxdepth 1 -type d -name 'mailcow-*' -printf '%T@ %p\n' \
+LATEST_BACKUP_DIR=$(find "$OFFICIAL_BACKUP_ROOT" -maxdepth 1 -type d -name 'mailcow-*' -printf '%T@ %p\n' \
     | sort -rn \
     | head -n 1 \
     | cut -d' ' -f2-)
 
 if [ -n "$LATEST_BACKUP_DIR" ] && [ -d "$LATEST_BACKUP_DIR" ]; then
     echo "[$TIMESTAMP] 备份成功，正在压缩: $LATEST_BACKUP_DIR"
-    tar -czf "$BACKUP_ROOT/$TAR_FILE" -C "$BACKUP_ROOT" "$(basename "$LATEST_BACKUP_DIR")"
+    tar -czf "$BACKUP_ROOT/$TAR_FILE" -C "$OFFICIAL_BACKUP_ROOT" "$(basename "$LATEST_BACKUP_DIR")"
+    chmod 0600 "$BACKUP_ROOT/$TAR_FILE"
     
     # 压缩完成后，删除原文件夹，释放本地磁盘空间
     rm -rf "$LATEST_BACKUP_DIR"

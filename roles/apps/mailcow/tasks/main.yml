@@ -38,6 +38,14 @@
     group: root
     mode: '0700'
 
+- name: 创建 Mailcow 官方备份工作目录
+  file:
+    path: /opt/mailcow_backup_work
+    state: directory
+    owner: root
+    group: root
+    mode: '1777'
+
 - name: 下发 Mailcow 自动备份脚本
   template:
     src: mailcow_backup.sh.j2

@@ -253,16 +253,22 @@ def test_mailcow_backup_success_packages_latest_backup_directory(script_harness)
     )
     helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
     backup_dir = h.workdir / "mailcow-backups"
+    official_backup_dir = h.workdir / "mailcow-backup-work"
 
     result = h.run_script(
         "mailcow_backup.sh",
-        env=h.script_env(MAILCOW_DIR=mailcow_dir, MAILCOW_BACKUP_ROOT=backup_dir),
+        env=h.script_env(
+            MAILCOW_DIR=mailcow_dir,
+            MAILCOW_BACKUP_ROOT=backup_dir,
+            MAILCOW_OFFICIAL_BACKUP_ROOT=official_backup_dir,
+        ),
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
     archives = list(backup_dir.glob("mailcow_backup_*.tar.gz"))
     assert len(archives) == 1
-    assert not (backup_dir / "mailcow-test").exists()
+    assert archives[0].stat().st_mode & stat.S_IRWXO == 0
+    assert not (official_backup_dir / "mailcow-test").exists()
 
 
 def test_mailcow_backup_failure_stops_before_packaging_and_upload(script_harness):
@@ -283,10 +289,15 @@ def test_mailcow_backup_failure_stops_before_packaging_and_upload(script_harness
     )
     helper.chmod(helper.stat().st_mode | stat.S_IXUSR)
     backup_dir = h.workdir / "mailcow-backups"
+    official_backup_dir = h.workdir / "mailcow-backup-work"
 
     result = h.run_script(
         "mailcow_backup.sh",
-        env=h.script_env(MAILCOW_DIR=mailcow_dir, MAILCOW_BACKUP_ROOT=backup_dir),
+        env=h.script_env(
+            MAILCOW_DIR=mailcow_dir,
+            MAILCOW_BACKUP_ROOT=backup_dir,
+            MAILCOW_OFFICIAL_BACKUP_ROOT=official_backup_dir,
+        ),
     )
 
     assert result.returncode == 1
