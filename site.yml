@@ -93,5 +93,5 @@
   gather_facts: false
   roles:
     - role: apps/neo_backend
-      tags: ['neo', 'apps']
+      tags: ['neo', 'neo_backend', 'apps']
       when: (neo_backend_enabled | default(enable_neo_backend_routes | default(false))) | bool
