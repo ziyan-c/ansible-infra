@@ -1,3 +1,8 @@
+{% set neo_wg_node = wg_servers.values() | selectattr('hostname', 'equalto', inventory_hostname) | first %}
+{% set neo_wg_bind_ip = neo_backend_wireguard_bind_ip | default('', true) %}
+{% if not neo_wg_bind_ip and neo_wg_node %}
+{% set neo_wg_bind_ip = wg_network_prefix ~ '.' ~ neo_wg_node.ip_suffix %}
+{% endif %}
 services:
   neo-backend:
     build:
@@ -17,6 +22,11 @@ services:
     expose:
       - "{{ neo_rag_proxy_port }}"
       - "{{ neo_llm_proxy_port }}"
+{% if neo_backend_publish_wireguard | default(true) | bool %}
+    ports:
+      - "{{ neo_wg_bind_ip }}:{{ neo_rag_proxy_port }}:{{ neo_rag_proxy_port }}"
+      - "{{ neo_wg_bind_ip }}:{{ neo_llm_proxy_port }}:{{ neo_llm_proxy_port }}"
+{% endif %}
     healthcheck:
       test:
         - CMD

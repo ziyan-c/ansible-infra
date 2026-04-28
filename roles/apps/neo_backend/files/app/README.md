@@ -6,6 +6,8 @@ intended to run **behind Caddy**:
 - Caddy reverse proxies `/api/rag*` to `neo-backend:8000`.
 - Caddy reverse proxies `/api/llm*` to `neo-backend:8080`.
 - `neo-backend` authenticates requests on both ports.
+- Ansible can also bind the same authenticated `8000` and `8080` proxy ports to
+  the host WireGuard address for private-network access.
 - `neo-backend` optionally starts an SSH tunnel to the 5090 compute node.
 - The tunnel maps remote `localhost:8000` and `localhost:8080` to local internal
   ports `18000` and `18080`.
@@ -22,6 +24,8 @@ The source behavior came from:
 ```text
 Caddy /api/rag* -> neo-backend:8000/* -> tunnel local :18000 -> 5090 :8000
 Caddy /api/llm* -> neo-backend:8080/* -> tunnel local :18080 -> 5090 :8080
+WireGuard http://<neo-wg-ip>:8000/* -> neo-backend:8000/* -> tunnel local :18000 -> 5090 :8000
+WireGuard http://<neo-wg-ip>:8080/* -> neo-backend:8080/* -> tunnel local :18080 -> 5090 :8080
 ```
 
 The `/api/rag` and `/api/llm` prefixes are stripped before proxying, matching
@@ -73,9 +77,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The compose file joins the external `web-proxy` network and only uses `expose`,
-matching the Caddy-backed production shape. For direct local Docker testing,
-temporarily add host `ports` mappings for `8000` and `8080`.
+The compose file joins the external `web-proxy` network. In production, Ansible
+can additionally publish `8000` and `8080` on the host WireGuard address so
+private clients still go through `neo-backend` authentication.
 
 ## Important
 

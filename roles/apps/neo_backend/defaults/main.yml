@@ -6,6 +6,8 @@ neo_backend_enabled: "{{ enable_neo_backend_routes | default(false) }}"
 neo_backend_manage_runtime: true
 neo_backend_image: "neo-backend:local"
 neo_backend_container_name: neo-backend
+neo_backend_publish_wireguard: true
+neo_backend_wireguard_bind_ip: ""
 
 neo_proxy_password: ""
 neo_proxy_password_allow_empty: false

@@ -81,10 +81,13 @@ def test_neo_backend_role_deploys_bundled_single_container_app():
     assert "src: app/" in tasks
     assert "src: neo-backend.env.j2" in tasks
     assert "neo_backend_app_source.changed or neo_backend_compose_template.changed" in tasks
+    assert "neo_backend_publish_wireguard" in tasks
     assert "no_log: true" in tasks
     assert "neo-backend:" in compose
     assert "context: ./app" in compose
     assert "env_file:" in compose
+    assert "ports:" in compose
+    assert "{{ neo_wg_bind_ip }}:{{ neo_rag_proxy_port }}:{{ neo_rag_proxy_port }}" in compose
     assert "go-proxy" not in compose
     assert "ssh-tunnel" not in compose
     assert "NEO_PROXY_PASSWORD={{ neo_proxy_password }}" in env_template

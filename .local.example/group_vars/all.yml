@@ -90,6 +90,7 @@ xray_reality_short_ids:
   - "0123456789abcdef"
 
 neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
+neo_backend_publish_wireguard: true
 neo_proxy_password_allow_empty: false
 neo_manage_ssh_tunnel: true
 ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"

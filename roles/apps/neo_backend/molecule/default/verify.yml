@@ -44,6 +44,16 @@
         cmd: "grep -F 'peer:10.66.0.2' {{ neo_backend_project_dir }}/docker-compose.yml"
       changed_when: false
 
+    - name: Check Neo Backend is published on the local WireGuard address
+      ansible.builtin.command:
+        cmd: "grep -F '10.66.0.1:8000:8000' {{ neo_backend_project_dir }}/docker-compose.yml"
+      changed_when: false
+
+    - name: Check Neo Backend LLM proxy is published on the local WireGuard address
+      ansible.builtin.command:
+        cmd: "grep -F '10.66.0.1:8080:8080' {{ neo_backend_project_dir }}/docker-compose.yml"
+      changed_when: false
+
     - name: Check old two-container prototype was removed
       ansible.builtin.command:
         cmd: "grep -E 'go-proxy|ssh-tunnel' {{ neo_backend_project_dir }}/docker-compose.yml"

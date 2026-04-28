@@ -45,6 +45,8 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "v2ray.example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
+assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'
+assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
 assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"
 assert_contains "$render_dir/compose/zammad.yml" \
 	'command: ["/bin/sh", "-lc", "sleep infinity"]'

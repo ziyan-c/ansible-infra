@@ -12,9 +12,15 @@
     that:
       - neo_proxy_password_allow_empty | bool or neo_proxy_password | length > 0
       - not (neo_manage_ssh_tunnel | bool) or neo_ssh_host | length > 0
+      - >
+        not (neo_backend_publish_wireguard | bool) or
+        neo_backend_wireguard_bind_ip | length > 0 or
+        (wg_servers.values() | selectattr('hostname', 'equalto', inventory_hostname) | list | length > 0)
     fail_msg: >-
       Neo Backend 需要 neo_proxy_password；如果启用 SSH tunnel，还需要
-      neo_ssh_host。测试或临时环境可显式设置 neo_proxy_password_allow_empty。
+      neo_ssh_host。如果发布到 WireGuard 内网，还需要当前主机存在于
+      wg_servers，或显式设置 neo_backend_wireguard_bind_ip。测试或临时环境可显式设置
+      neo_proxy_password_allow_empty。
   no_log: true
 
 - name: 下发 Neo-Backend 应用源码
