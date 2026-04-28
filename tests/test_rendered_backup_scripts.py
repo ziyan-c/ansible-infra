@@ -483,6 +483,8 @@ def test_zammad_local_backup_runs_compose_backup_command(script_harness):
     assert result.returncode == 0, result.stdout + result.stderr
     docker_log = (h.log_dir / "docker.log").read_text(encoding="utf-8")
     assert "compose exec -T zammad-backup" in docker_log
+    assert "/opt/zammad/contrib/backup/zammad_backup.sh" in docker_log
+    assert "/opt/zammad/contrib/backup/scripts/zammad_backup.sh" not in docker_log
 
 
 def test_zammad_cloud_sync_uploads_volume_and_prunes_old_remote_files(

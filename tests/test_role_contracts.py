@@ -99,6 +99,15 @@ def test_neo_backend_query_password_is_not_forwarded_upstream():
     assert "join_url(base_url, path, sanitized_query(request))" in proxy
 
 
+def test_neo_backend_proxy_preserves_upstream_streaming():
+    proxy = read_role_file("roles/apps/neo_backend/files/app/src/neo_backend/proxy.py")
+
+    assert "client.send(upstream_request, stream=True)" in proxy
+    assert "StreamingResponse(" in proxy
+    assert "upstream.aiter_bytes()" in proxy
+    assert "BackgroundTask(upstream.aclose)" in proxy
+
+
 def test_neo_backend_auth_check_requires_proxy_auth_before_catch_all():
     app = read_role_file("roles/apps/neo_backend/files/app/src/neo_backend/app.py")
 

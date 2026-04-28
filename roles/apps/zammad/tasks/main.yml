@@ -177,6 +177,19 @@
     group: root
     mode: '0700'
 
+- name: 确保 Zammad 备份日志文件存在且权限收敛
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    owner: root
+    group: root
+    mode: '0640'
+    access_time: preserve
+    modification_time: preserve
+  loop:
+    - /var/log/zammad_backup_local.log
+    - /var/log/zammad_backup_cloud.log
+
 - name: 设置定时任务 (每天早 06:00 触发 Zammad 本地备份)
   ansible.builtin.cron:
     name: "Zammad Local Backup"
@@ -192,8 +205,11 @@
     job: "/opt/zammad/zammad_sync.sh cloud >> /var/log/zammad_backup_cloud.log 2>&1"
 
 - name: 配置 Zammad 备份日志轮转 (包含两个日志)
-  copy:
+  ansible.builtin.copy:
     dest: /etc/logrotate.d/zammad_sync
+    owner: root
+    group: root
+    mode: '0644'
     content: |
       /var/log/zammad_backup_local.log
       /var/log/zammad_backup_cloud.log {
@@ -203,5 +219,5 @@
           notifempty
           compress
           delaycompress
-          copytruncate
+          create 0640 root root
       }

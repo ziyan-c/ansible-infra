@@ -5,6 +5,8 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import Request, Response
+from starlette.background import BackgroundTask
+from starlette.responses import StreamingResponse
 
 
 HOP_BY_HOP_HEADERS = {
@@ -51,15 +53,17 @@ async def proxy_request(
 ) -> Response:
     upstream_url = join_url(base_url, path, sanitized_query(request))
     body = await request.body()
-    upstream = await client.request(
+    upstream_request = client.build_request(
         request.method,
         upstream_url,
         content=body,
         headers=_filtered_headers(request.headers.items()),
     )
-    return Response(
-        content=upstream.content,
+    upstream = await client.send(upstream_request, stream=True)
+    return StreamingResponse(
+        upstream.aiter_bytes(),
         status_code=upstream.status_code,
         headers=_filtered_headers(upstream.headers.items()),
         media_type=upstream.headers.get("content-type"),
+        background=BackgroundTask(upstream.aclose),
     )

@@ -51,7 +51,7 @@ case "$1" in
         echo "[$TIMESTAMP] --- 执行阶段: 本地全量备份 (依赖 HOLD_DAYS 自动清理) ---"
         # 必须先进入 compose 目录，且使用 -T 取消 TTY 分配（Cron 环境下没有 TTY 会报错）
         cd "$ZAMMAD_DIR" || exit 1
-        if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/scripts/zammad_backup.sh; then
+        if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/zammad_backup.sh; then
             echo "[$TIMESTAMP] ✅ Zammad 本地备份与内置垃圾回收成功！"
             prune_local_backups
         else
