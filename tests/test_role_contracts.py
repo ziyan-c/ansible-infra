@@ -99,6 +99,17 @@ def test_neo_backend_query_password_is_not_forwarded_upstream():
     assert "join_url(base_url, path, sanitized_query(request))" in proxy
 
 
+def test_neo_backend_auth_check_requires_proxy_auth_before_catch_all():
+    app = read_role_file("roles/apps/neo_backend/files/app/src/neo_backend/app.py")
+
+    auth_check = app.index('@app.get("/auth/check")')
+    catch_all = app.index('@app.api_route("/{path:path}"')
+
+    assert "Depends(auth_dependency)" in app[auth_check:catch_all]
+    assert '"authenticated": True' in app[auth_check:catch_all]
+    assert auth_check < catch_all
+
+
 def test_backup_cron_schedules_are_declared_and_staggered():
     postgres = read_role_file("roles/apps/postgres/tasks/main.yml")
     mailcow = read_role_file("roles/apps/mailcow/tasks/main.yml")

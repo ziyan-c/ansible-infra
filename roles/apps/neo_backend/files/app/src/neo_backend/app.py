@@ -43,6 +43,14 @@ def create_proxy_app(
             "tunnel": tunnel.status() if tunnel else {"enabled": resolved.manage_ssh_tunnel},
         }
 
+    @app.get("/auth/check")
+    async def auth_check(_: None = Depends(auth_dependency)) -> dict[str, object]:
+        return {
+            "ok": True,
+            "authenticated": True,
+            "service": service_name,
+        }
+
     @app.api_route("/", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     async def service_proxy(
