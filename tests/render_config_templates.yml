@@ -13,6 +13,10 @@
       default_ipv4:
         interface: eth0
     enable_neo_backend_routes: true
+    neo_backend_image: "neo-backend:local"
+    neo_backend_container_name: neo-backend
+    neo_rag_proxy_port: 8000
+    neo_llm_proxy_port: 8080
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json

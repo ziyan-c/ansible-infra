@@ -8,7 +8,6 @@
     neo_backend_owner: "{{ lookup('pipe', 'id -un') }}"
     neo_backend_group: "{{ lookup('pipe', 'id -gn') }}"
     neo_backend_manage_runtime: false
-    neo_ssh_tunnel_image: "alpine:test"
     neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
     ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
     neo_ssh_user: remote-user

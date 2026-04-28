@@ -73,6 +73,32 @@ def test_zammad_init_runs_separately_when_database_needs_it():
     assert "zammad_env_template.changed" in tasks
 
 
+def test_neo_backend_role_deploys_bundled_single_container_app():
+    tasks = read_role_file("roles/apps/neo_backend/tasks/main.yml")
+    compose = read_role_file("roles/apps/neo_backend/templates/docker-compose.yml.j2")
+    env_template = read_role_file("roles/apps/neo_backend/templates/neo-backend.env.j2")
+
+    assert "src: app/" in tasks
+    assert "src: neo-backend.env.j2" in tasks
+    assert "neo_backend_app_source.changed or neo_backend_compose_template.changed" in tasks
+    assert "no_log: true" in tasks
+    assert "neo-backend:" in compose
+    assert "context: ./app" in compose
+    assert "env_file:" in compose
+    assert "go-proxy" not in compose
+    assert "ssh-tunnel" not in compose
+    assert "NEO_PROXY_PASSWORD={{ neo_proxy_password }}" in env_template
+    assert "NEO_MANAGE_SSH_TUNNEL={{ 1 if neo_manage_ssh_tunnel | bool else 0 }}" in env_template
+
+
+def test_neo_backend_query_password_is_not_forwarded_upstream():
+    proxy = read_role_file("roles/apps/neo_backend/files/app/src/neo_backend/proxy.py")
+
+    assert "def sanitized_query" in proxy
+    assert 'key.lower() != "password"' in proxy
+    assert "join_url(base_url, path, sanitized_query(request))" in proxy
+
+
 def test_backup_cron_schedules_are_declared_and_staggered():
     postgres = read_role_file("roles/apps/postgres/tasks/main.yml")
     mailcow = read_role_file("roles/apps/mailcow/tasks/main.yml")

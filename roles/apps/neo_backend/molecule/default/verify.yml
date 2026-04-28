@@ -18,10 +18,35 @@
 
     - name: Validate rendered compose file
       ansible.builtin.command:
-        cmd: "docker compose -f {{ neo_backend_project_dir }}/docker-compose.yml config"
+        cmd: docker compose -f docker-compose.yml config
+        chdir: "{{ neo_backend_project_dir }}"
       changed_when: false
+
+    - name: Check bundled application source was copied
+      ansible.builtin.stat:
+        path: "{{ neo_backend_project_dir }}/app/src/neo_backend/app.py"
+      register: neo_backend_app
+
+    - name: Check rendered env file exists
+      ansible.builtin.stat:
+        path: "{{ neo_backend_project_dir }}/.env"
+      register: neo_backend_env
+      no_log: true
+
+    - name: Assert bundled app and env file exist
+      ansible.builtin.assert:
+        that:
+          - neo_backend_app.stat.exists
+          - neo_backend_env.stat.exists
 
     - name: Check WireGuard host aliases were rendered
       ansible.builtin.command:
         cmd: "grep -F 'peer:10.66.0.2' {{ neo_backend_project_dir }}/docker-compose.yml"
+      changed_when: false
+
+    - name: Check old two-container prototype was removed
+      ansible.builtin.command:
+        cmd: "grep -E 'go-proxy|ssh-tunnel' {{ neo_backend_project_dir }}/docker-compose.yml"
+      register: old_neo_backend_services
+      failed_when: old_neo_backend_services.rc == 0
       changed_when: false

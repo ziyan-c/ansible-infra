@@ -20,7 +20,6 @@ v2ray_image: "v2fly/v2fly-core:v5.41.0"
 xray_image: "ghcr.io/xtls/xray-core:25.8.3"
 pgvector_image: "ankane/pgvector:v0.5.1"
 cloudflared_image: "cloudflare/cloudflared:2026.3.0"
-neo_ssh_tunnel_image: "alpine:3.23.4"
 
 base_domain: example.com
 v2ray_domain: v2ray.example.com
@@ -91,7 +90,13 @@ xray_reality_short_ids:
   - "0123456789abcdef"
 
 neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
+neo_proxy_password_allow_empty: false
+neo_manage_ssh_tunnel: true
 ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
 neo_ssh_user: remote-user
 neo_ssh_host: compute.example.com
 neo_ssh_port: 22
+neo_remote_rag_host: localhost
+neo_remote_rag_port: 8000
+neo_remote_llm_host: localhost
+neo_remote_llm_port: 8080

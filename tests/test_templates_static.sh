@@ -62,6 +62,9 @@ if command -v docker >/dev/null 2>&1; then
 	export RAILS_TRUSTED_PROXIES='["127.0.0.1","172.16.0.0/12","172.18.0.0/16"]'
 	export ZAMMAD_FQDN="support.example.com"
 	export ZAMMAD_HTTP_TYPE="https"
+	mkdir -p "$render_dir/compose/app"
+	printf 'FROM scratch\n' >"$render_dir/compose/app/Dockerfile"
+	touch "$render_dir/compose/.env"
 
 	while IFS= read -r compose_file; do
 		docker compose -f "$compose_file" config >/dev/null

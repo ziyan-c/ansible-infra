@@ -1,49 +1,31 @@
 services:
-  # API 鉴权网关 (核心守门员)
-  go-proxy:
-    build: ./coding 
-    container_name: neo-backend 
-    restart: unless-stopped 
-    environment:
-      # 动态读取 vars.yml 中的网关密码
-      - PROXY_PASSWORD={{ neo_proxy_password }}
-      - TARGET_HOST=ssh-tunnel 
-    # 👇 把内网解析直接塞进容器里
+  neo-backend:
+    build:
+      context: ./app
+    image: "{{ neo_backend_image }}"
+    container_name: "{{ neo_backend_container_name }}"
+    restart: unless-stopped
+    env_file:
+      - .env
     extra_hosts:
+      - "host.docker.internal:host-gateway"
 {% for name, srv in wg_servers.items() %}
       - "{{ srv.hostname.split('.')[0] }}:{{ wg_network_prefix }}.{{ srv.ip_suffix }}"
 {% endfor %}
     networks:
       - web-proxy
-    # expose 仅仅向 web-proxy 网络内的其他容器（比如 Caddy）暴露端口，外网绝对无法直接访问！
     expose:
-      - "8000"
-      - "8080"
-    depends_on: [ssh-tunnel]
-
-  # SSH 隧道打通算力节点
-  ssh-tunnel:
-    image: "{{ neo_ssh_tunnel_image }}"
-    container_name: ssh-tunnel
-    restart: unless-stopped 
-    command: 
-      - /bin/sh
-      - -c
-      - |
-        apk add --no-cache openssh-client sshpass
-        sshpass -p '{{ ssh_tunnel_password }}' ssh \
-          -o StrictHostKeyChecking=no \
-          -o ServerAliveInterval=30 \
-          -o ServerAliveCountMax=3 \
-          -o ExitOnForwardFailure=yes \
-          -N -L 0.0.0.0:8000:localhost:8000 \
-          -L 0.0.0.0:8080:localhost:8080 \
-          {{ neo_ssh_user }}@{{ neo_ssh_host }} -p {{ neo_ssh_port }}
-    networks:
-      - web-proxy
-    expose: 
-      - "8000"
-      - "8080"
+      - "{{ neo_rag_proxy_port }}"
+      - "{{ neo_llm_proxy_port }}"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:{{ neo_rag_proxy_port }}/health', timeout=5)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   web-proxy:

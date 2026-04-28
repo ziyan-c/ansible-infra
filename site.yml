@@ -87,10 +87,11 @@
 
 
 
-# 把最后这一块全部用 # 注释掉
-# - name: 部署 AI 服务网关与隧道
-#   hosts: neo_backend_nodes
-#   become: yes
-#   roles:
-#     - role: apps/neo_backend
-#       tags: ['neo', 'apps']
+- name: 部署 AI 服务网关与隧道
+  hosts: neo_backend_nodes
+  become: yes
+  gather_facts: false
+  roles:
+    - role: apps/neo_backend
+      tags: ['neo', 'apps']
+      when: (neo_backend_enabled | default(enable_neo_backend_routes | default(false))) | bool

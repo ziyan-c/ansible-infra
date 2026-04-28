@@ -1,15 +1,31 @@
 ---
 - name: 创建 Neo-Backend 工作目录
-  file:
+  ansible.builtin.file:
     path: "{{ neo_backend_project_dir }}"
     state: directory
     owner: "{{ neo_backend_owner }}"
     group: "{{ neo_backend_group }}"
     mode: '0755'
 
-# 💡 提示：如果你的 go-proxy 是现场编译的，你需要在这里加一个 task
-# 把你本地的 coding 文件夹拷贝到目标服务器的 /opt/neo_backend/coding
-# 例如使用 copy 或 synchronize 模块。
+- name: 校验 Neo-Backend 必需配置
+  ansible.builtin.assert:
+    that:
+      - neo_proxy_password_allow_empty | bool or neo_proxy_password | length > 0
+      - not (neo_manage_ssh_tunnel | bool) or neo_ssh_host | length > 0
+    fail_msg: >-
+      Neo Backend 需要 neo_proxy_password；如果启用 SSH tunnel，还需要
+      neo_ssh_host。测试或临时环境可显式设置 neo_proxy_password_allow_empty。
+  no_log: true
+
+- name: 下发 Neo-Backend 应用源码
+  ansible.builtin.copy:
+    src: app/
+    dest: "{{ neo_backend_project_dir }}/app/"
+    owner: "{{ neo_backend_owner }}"
+    group: "{{ neo_backend_group }}"
+    mode: preserve
+  register: neo_backend_app_source
+  notify: Restart Neo-Backend
 
 - name: 确保外部网络 web-proxy 存在
   community.docker.docker_network:
@@ -18,24 +34,29 @@
   when: neo_backend_manage_runtime | bool
 
 - name: 下发 Neo-Backend Docker Compose 文件
-  template:
+  ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ neo_backend_project_dir }}/docker-compose.yml"
+    owner: "{{ neo_backend_owner }}"
+    group: "{{ neo_backend_group }}"
+    mode: '0600'
+  register: neo_backend_compose_template
+  notify: Restart Neo-Backend
+  no_log: true
+
+- name: 下发 Neo-Backend 环境变量文件
+  ansible.builtin.template:
+    src: neo-backend.env.j2
+    dest: "{{ neo_backend_project_dir }}/.env"
     owner: "{{ neo_backend_owner }}"
     group: "{{ neo_backend_group }}"
     mode: '0600'
   notify: Restart Neo-Backend
   no_log: true
 
-# go-proxy 到目标服务器
-#       - "--chown=root:root"
-#       - "--chmod=D0755,F0644"
-#     notify: Restart Neo-Backend
-## TODO: docker container replacement
-
-- name: 启动 Neo-Backend 和 SSH-Tunnel 容器
+- name: 启动 Neo-Backend 容器
   community.docker.docker_compose_v2:
     project_src: "{{ neo_backend_project_dir }}"
     state: present
-    build: always # 确保如果有代码更新，会自动重新 build
+    build: "{{ 'always' if neo_backend_app_source.changed or neo_backend_compose_template.changed else 'policy' }}"
   when: neo_backend_manage_runtime | bool
