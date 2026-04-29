@@ -18,6 +18,8 @@
         dest: pg_backup_all.sh
       - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_sync.sh.j2"
         dest: zammad_sync.sh
+      - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_backup_config.j2"
+        dest: zammad_backup_config
   tasks:
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:

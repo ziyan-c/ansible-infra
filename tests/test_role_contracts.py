@@ -148,3 +148,5 @@ def test_backup_cron_schedules_are_declared_and_staggered():
     assert 'name: "Zammad Cloud Sync"' in zammad
     assert 'hour: "18"' in zammad
     assert "/etc/logrotate.d/zammad_sync" in zammad
+    assert "src: zammad_backup_config.j2" in zammad
+    assert "dest: /opt/zammad/backup_config" in zammad

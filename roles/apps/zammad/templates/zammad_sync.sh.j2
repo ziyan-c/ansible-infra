@@ -18,6 +18,30 @@ KEEP_REMOTE={{ backup_keep_remote }}
 # 动态定位 Docker 备份卷路径
 VOLUME_PATH=$(docker volume inspect zammad_zammad-backup -f '{% raw %}{{ .Mountpoint }}{% endraw %}' 2>/dev/null)
 
+run_official_backup() {
+    docker compose exec -T zammad-backup sh -lc '
+        set -eu
+        db_config="/opt/zammad/config/database.yml"
+        cleanup() {
+            rm -f "$db_config"
+        }
+        trap cleanup EXIT
+
+        umask 077
+        cat > "$db_config" <<EOF
+production:
+  adapter: postgresql
+  database: ${POSTGRESQL_DB}
+  username: ${POSTGRESQL_USER}
+  password: ${POSTGRESQL_PASS}
+  host: ${POSTGRESQL_HOST}
+  port: ${POSTGRESQL_PORT}
+EOF
+
+        /opt/zammad/contrib/backup/zammad_backup.sh
+    '
+}
+
 prune_local_backups() {
     if [ -z "$VOLUME_PATH" ] || [ ! -d "$VOLUME_PATH" ]; then
         echo "[$TIMESTAMP] ⚠️ 找不到本地备份物理路径，跳过本地清理: $VOLUME_PATH"
@@ -51,7 +75,7 @@ case "$1" in
         echo "[$TIMESTAMP] --- 执行阶段: 本地全量备份 (依赖 HOLD_DAYS 自动清理) ---"
         # 必须先进入 compose 目录，且使用 -T 取消 TTY 分配（Cron 环境下没有 TTY 会报错）
         cd "$ZAMMAD_DIR" || exit 1
-        if docker compose exec -T zammad-backup /opt/zammad/contrib/backup/zammad_backup.sh; then
+        if run_official_backup; then
             echo "[$TIMESTAMP] ✅ Zammad 本地备份与内置垃圾回收成功！"
             prune_local_backups
         else
@@ -68,7 +92,11 @@ case "$1" in
         fi
 
         echo "[$TIMESTAMP] 正在将本地备份镜像至 Google Drive..."
-        if rclone copy "$VOLUME_PATH" "$GDRIVE_REMOTE" -v; then
+        if rclone copy "$VOLUME_PATH" "$GDRIVE_REMOTE" -v \
+            --filter '- latest_*' \
+            --filter '+ *_zammad_db.psql.gz' \
+            --filter '+ *_zammad_files.tar.gz' \
+            --filter '- *'; then
             echo "[$TIMESTAMP] ✅ 云端同步成功！"
             
             # --- 远端清理逻辑 ---

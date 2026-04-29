@@ -50,6 +50,8 @@ assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
 assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"
 assert_contains "$render_dir/compose/zammad.yml" \
 	'command: ["/bin/sh", "-lc", "sleep infinity"]'
+assert_contains "$render_dir/compose/zammad.yml" \
+	"./backup_config:/opt/zammad/contrib/backup/config:ro"
 assert_contains "$render_dir/certbot/cloudflare.ini" \
 	"dns_cloudflare_api_token = REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
 assert_contains "$render_dir/wireguard/wg0.conf" "Address = 10.66.0.1/24"

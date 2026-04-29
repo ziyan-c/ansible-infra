@@ -33,6 +33,14 @@
   register: zammad_compose_template
   notify: Restart Zammad
 
+- name: 下发 Zammad 官方备份脚本配置
+  ansible.builtin.template:
+    src: zammad_backup_config.j2
+    dest: /opt/zammad/backup_config
+    owner: root
+    group: root
+    mode: '0644'
+
 # 第一次启动 Zammad 会非常慢，因为 init 容器需要跑数据库迁移
 - name: 启动 Zammad 基础依赖服务
   community.docker.docker_compose_v2:

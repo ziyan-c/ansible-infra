@@ -484,7 +484,17 @@ def test_zammad_local_backup_runs_compose_backup_command(script_harness):
     docker_log = (h.log_dir / "docker.log").read_text(encoding="utf-8")
     assert "compose exec -T zammad-backup" in docker_log
     assert "/opt/zammad/contrib/backup/zammad_backup.sh" in docker_log
+    assert "/opt/zammad/config/database.yml" in docker_log
+    assert "password: ${POSTGRESQL_PASS}" in docker_log
     assert "/opt/zammad/contrib/backup/scripts/zammad_backup.sh" not in docker_log
+
+
+def test_zammad_official_backup_config_uses_the_backup_volume(render_root):
+    config = (render_root / "zammad_backup_config").read_text(encoding="utf-8")
+
+    assert "BACKUP_DIR='/var/tmp/zammad'" in config
+    assert "HOLD_DAYS='7'" in config
+    assert "FULL_FS_DUMP='no'" in config
 
 
 def test_zammad_cloud_sync_uploads_volume_and_prunes_old_remote_files(
@@ -555,6 +565,10 @@ def test_zammad_cloud_sync_uploads_volume_and_prunes_old_remote_files(
     assert result.returncode == 0, result.stdout + result.stderr
     rclone_log = (h.log_dir / "rclone.log").read_text(encoding="utf-8")
     assert f"copy {volume_path} gdrive:AUTO_BACKUPS/zammad -v" in rclone_log
+    assert "--filter - latest_*" in rclone_log
+    assert "--filter + *_zammad_db.psql.gz" in rclone_log
+    assert "--filter + *_zammad_files.tar.gz" in rclone_log
+    assert "--filter - *" in rclone_log
     assert (
         "deletefile gdrive:AUTO_BACKUPS/zammad/zammad-backup-01.tar.gz"
         in rclone_log
