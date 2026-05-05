@@ -41,27 +41,28 @@
   "inbounds": [
     {
       "tag": "{{ proxy_control_plane_runtime_inbound_tag }}",
-      "port": 10010,
+      "port": {{ xray_under_caddy_internal_port | default(10010) | int }},
       "protocol": "vless",
       "settings": {
         "clients": [
           {
-            "id": "{{ v2ray_client_id }}"
+            "id": "{{ xray_under_caddy_client_id }}"
           }
         ],
         "decryption": "none"
       },
       "streamSettings": {
         "network": "ws",
+        "security": "none",
         "wsSettings": {
-          "path": "/v2ray"
+          "path": "{{ xray_under_caddy_ws_path | default('/v2ray') }}"
         }
       }
     }{% if proxy_control_plane_runtime_api_enabled | bool %},
     {
       "tag": "{{ proxy_control_plane_runtime_api_tag }}",
       "listen": "0.0.0.0",
-      "port": {{ proxy_control_plane_v2ray_runtime_api_port | int }},
+      "port": {{ proxy_control_plane_xray_under_caddy_runtime_api_port | int }},
       "protocol": "dokodemo-door",
       "settings": {
         "address": "127.0.0.1"

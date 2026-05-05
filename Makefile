@@ -27,8 +27,8 @@ test-ansible:
 test-molecule:
 	$(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
 	$(MOLECULE_ENV) molecule test -s default
-	cd roles/apps/v2ray && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
-	cd roles/apps/v2ray && $(MOLECULE_ENV) molecule test -s default
+	cd roles/apps/xray_under_caddy && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
+	cd roles/apps/xray_under_caddy && $(MOLECULE_ENV) molecule test -s default
 	cd roles/apps/xray && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
 	cd roles/apps/xray && $(MOLECULE_ENV) molecule test -s default
 	cd roles/apps/cloudflared && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true

@@ -151,7 +151,7 @@ def test_backup_cron_schedules_are_declared_and_staggered():
     assert "src: zammad_backup_config.j2" in zammad
     assert "dest: /opt/zammad/backup_config" in zammad
 
-def test_proxy_control_plane_node_sync_registers_xray_and_v2ray_by_api():
+def test_proxy_control_plane_node_sync_registers_xray_under_caddy_and_xray_by_api():
     site = read_role_file("site.yml")
     tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
     defaults = read_role_file("roles/apps/proxy_control_plane_node_sync/defaults/main.yml")
@@ -167,25 +167,25 @@ def test_proxy_control_plane_node_sync_registers_xray_and_v2ray_by_api():
     assert "/admin/login" in tasks
     assert "/admin/nodes/sync" in tasks
     assert "runtime: xray" in tasks
-    assert "runtime: v2ray" in tasks
+    assert "xray_under_caddy_nodes" in tasks
     assert "no_log: true" in tasks
 
 def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_config = read_role_file("roles/apps/xray/templates/config.json.j2")
-    v2ray_config = read_role_file("roles/apps/v2ray/templates/config.json.j2")
+    xray_under_caddy_config = read_role_file("roles/apps/xray_under_caddy/templates/config.json.j2")
     xray_compose = read_role_file("roles/apps/xray/templates/docker-compose.yml.j2")
-    v2ray_compose = read_role_file("roles/apps/v2ray/templates/docker-compose.yml.j2")
+    xray_under_caddy_compose = read_role_file("roles/apps/xray_under_caddy/templates/docker-compose.yml.j2")
     sync_tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
     example_vars = read_role_file(".local.example/group_vars/all.yml")
 
     assert "proxy_control_plane_runtime_api_tag" in xray_config
-    assert "proxy_control_plane_runtime_api_tag" in v2ray_config
+    assert "proxy_control_plane_runtime_api_tag" in xray_under_caddy_config
     assert "proxy_control_plane_runtime_inbound_tag" in xray_config
-    assert "proxy_control_plane_runtime_inbound_tag" in v2ray_config
+    assert "proxy_control_plane_runtime_inbound_tag" in xray_under_caddy_config
     assert "dokodemo-door" in xray_config
-    assert "dokodemo-door" in v2ray_config
+    assert "dokodemo-door" in xray_under_caddy_config
     assert "proxy_control_plane_runtime_api_host" in xray_compose
-    assert "proxy_control_plane_runtime_api_host" in v2ray_compose
+    assert "proxy_control_plane_runtime_api_host" in xray_under_caddy_compose
     assert "runtime_api_enabled" in sync_tasks
     assert "runtime_api_host" in sync_tasks
     assert "runtime_api_port" in sync_tasks
@@ -193,4 +193,4 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     assert "proxy_control_plane_runtime_api_tag: proxy-control-plane-api" in example_vars
     assert "proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in" in example_vars
     assert "proxy_control_plane_xray_runtime_api_port: 10085" in example_vars
-    assert "proxy_control_plane_v2ray_runtime_api_port: 10086" in example_vars
+    assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10086" in example_vars

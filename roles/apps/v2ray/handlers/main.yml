@@ -1,6 +1,0 @@
----
-- name: Restart V2ray
-  community.docker.docker_compose_v2:
-    project_src: "{{ v2ray_project_dir }}"
-    state: restarted
-  when: v2ray_manage_runtime | bool

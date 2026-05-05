@@ -1,0 +1,48 @@
+---
+- name: 校验 Proxy Control Plane runtime API 绑定地址 (Xray Under Caddy)
+  ansible.builtin.assert:
+    that:
+      - proxy_control_plane_runtime_api_host | default('') | length > 0
+    fail_msg: >-
+      Set proxy_control_plane_runtime_api_host to this host's WireGuard IP
+      before enabling proxy_control_plane_runtime_api_enabled.
+  when: proxy_control_plane_runtime_api_enabled | default(false) | bool
+
+- name: 创建 Xray under Caddy 工作目录
+  ansible.builtin.file:
+    path: "{{ xray_under_caddy_project_dir }}"
+    state: directory
+    owner: "{{ xray_under_caddy_owner }}"
+    group: "{{ xray_under_caddy_group }}"
+    mode: '0755'
+
+- name: 确保外部网络 web-proxy 存在
+  community.docker.docker_network:
+    name: web-proxy
+    state: present
+  when: xray_under_caddy_manage_runtime | bool
+
+- name: 下发 Xray under Caddy 配置文件 (config.json)
+  ansible.builtin.template:
+    src: config.json.j2
+    dest: "{{ xray_under_caddy_project_dir }}/config.json"
+    owner: "{{ xray_under_caddy_owner }}"
+    group: "{{ xray_under_caddy_group }}"
+    mode: '0644'
+  notify: Restart Xray under Caddy
+  no_log: true
+
+- name: 下发 Xray under Caddy Docker Compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ xray_under_caddy_project_dir }}/docker-compose.yml"
+    owner: "{{ xray_under_caddy_owner }}"
+    group: "{{ xray_under_caddy_group }}"
+    mode: '0644'
+  notify: Restart Xray under Caddy
+
+- name: 启动 Xray under Caddy 容器
+  community.docker.docker_compose_v2:
+    project_src: "{{ xray_under_caddy_project_dir }}"
+    state: present
+  when: xray_under_caddy_manage_runtime | bool

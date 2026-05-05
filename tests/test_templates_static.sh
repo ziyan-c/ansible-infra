@@ -32,23 +32,23 @@ if command -v jq >/dev/null 2>&1; then
 	done < <(find "$render_dir/json" -type f -name '*.json')
 
 	jq -e '.api.tag == "proxy-control-plane-api"' \
-		"$render_dir/json/v2ray-config.json" >/dev/null
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.api.tag == "proxy-control-plane-api"' \
 		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
-		"$render_dir/json/v2ray-config.json" >/dev/null
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
 		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.inbounds[0].tag == "proxy-control-plane-vless-in"' \
-		"$render_dir/json/v2ray-config.json" >/dev/null
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.inbounds[0].tag == "proxy-control-plane-vless-in"' \
 		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10086' \
-		"$render_dir/json/v2ray-config.json" >/dev/null
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10085' \
 		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.inbounds[0].streamSettings.wsSettings.path == "/v2ray"' \
-		"$render_dir/json/v2ray-config.json" >/dev/null
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.inbounds[0].streamSettings.security == "reality"' \
 		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.inbounds[0].streamSettings.realitySettings.dest == "www.example.com:443"' \
@@ -58,7 +58,7 @@ else
 fi
 
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
-assert_contains "$render_dir/caddy/vps-a.Caddyfile" "v2ray.example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "xray-under-caddy.example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'

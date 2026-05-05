@@ -32,4 +32,4 @@ The suite covers:
 - `shellcheck` when it is installed locally.
 - Ansible inventory loading, playbook syntax checks, and `ansible-lint`.
 - A repository-wide Molecule template scenario plus role-level Molecule
-  scenarios for V2ray, Xray, Cloudflared, and Neo Backend in `make test-all`.
+  scenarios for Xray Under Caddy, Xray, Cloudflared, and Neo Backend in `make test-all`.

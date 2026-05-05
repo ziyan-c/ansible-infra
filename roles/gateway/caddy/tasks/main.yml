@@ -33,7 +33,7 @@
   notify: Restart Caddy
   no_log: true
 
-- name: 确保外部网络 web-proxy 存在 (用于与 V2ray/Neo 通信)
+- name: 确保外部网络 web-proxy 存在 (用于与 Xray under Caddy/Neo 通信)
   community.docker.docker_network:
     name: web-proxy
     state: present

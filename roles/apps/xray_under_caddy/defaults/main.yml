@@ -1,0 +1,15 @@
+---
+xray_under_caddy_image: "{{ xray_image | default('ghcr.io/xtls/xray-core:25.8.3') }}"
+xray_under_caddy_project_dir: /opt/xray-under-caddy
+xray_under_caddy_owner: root
+xray_under_caddy_group: root
+xray_under_caddy_manage_runtime: true
+xray_under_caddy_client_id: "00000000-0000-0000-0000-000000000000"
+xray_under_caddy_internal_port: 10010
+xray_under_caddy_ws_path: /v2ray
+proxy_control_plane_runtime_api_enabled: false
+proxy_control_plane_runtime_api_host: ""
+proxy_control_plane_runtime_api_tag: proxy-control-plane-api
+proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
+proxy_control_plane_xray_runtime_api_port: 10085
+proxy_control_plane_xray_under_caddy_runtime_api_port: 10086

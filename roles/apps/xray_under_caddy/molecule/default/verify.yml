@@ -1,0 +1,32 @@
+---
+- name: Verify Xray under Caddy role
+  hosts: localhost
+  gather_facts: false
+  vars:
+    xray_under_caddy_project_dir: "{{ lookup('env', 'MOLECULE_EPHEMERAL_DIRECTORY') }}/xray-under-caddy"
+  tasks:
+    - name: Check rendered Xray Under Caddy config exists
+      ansible.builtin.stat:
+        path: "{{ xray_under_caddy_project_dir }}/config.json"
+      register: xray_under_caddy_config
+
+    - name: Check rendered Xray Under Caddy compose exists
+      ansible.builtin.stat:
+        path: "{{ xray_under_caddy_project_dir }}/docker-compose.yml"
+      register: xray_under_caddy_compose
+
+    - name: Assert Xray Under Caddy files were rendered
+      ansible.builtin.assert:
+        that:
+          - xray_under_caddy_config.stat.exists
+          - xray_under_caddy_compose.stat.exists
+
+    - name: Validate rendered Xray Under Caddy config JSON
+      ansible.builtin.command:
+        cmd: "jq -e . {{ xray_under_caddy_project_dir }}/config.json"
+      changed_when: false
+
+    - name: Validate rendered Xray Under Caddy compose
+      ansible.builtin.command:
+        cmd: "docker compose -f {{ xray_under_caddy_project_dir }}/docker-compose.yml config"
+      changed_when: false

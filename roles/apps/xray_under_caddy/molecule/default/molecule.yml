@@ -1,0 +1,16 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: default
+platforms:
+  - name: localhost
+provisioner:
+  name: ansible
+  inventory:
+    host_vars:
+      localhost:
+        ansible_connection: local
+        ansible_python_interpreter: "{{ lookup('env', 'MOLECULE_PYTHON') | default(ansible_playbook_python, true) }}"
+verifier:
+  name: ansible

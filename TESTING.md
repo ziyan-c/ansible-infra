@@ -155,7 +155,7 @@ on rendered scripts, and runs ShellCheck when available.
 
 The role-level template-convergence scenarios currently cover:
 
-- `roles/apps/v2ray`
+- `roles/apps/xray_under_caddy`
 - `roles/apps/xray`
 - `roles/apps/cloudflared`
 - `roles/apps/neo_backend`

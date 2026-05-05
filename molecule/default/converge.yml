@@ -23,13 +23,13 @@
     docker_log_max_size: "10m"
     docker_log_max_file: "3"
     caddy_image: "caddy:2.11.2"
-    v2ray_image: "v2fly/v2fly-core:test"
+    xray_under_caddy_image: "ghcr.io/xtls/xray-core:test"
     xray_image: "ghcr.io/xtls/xray-core:test"
     pgvector_image: "ankane/pgvector:test"
     cloudflared_image: "cloudflare/cloudflared:test"
     neo_ssh_tunnel_image: "alpine:test"
     base_domain: example.com
-    v2ray_domain: v2ray.example.com
+    xray_under_caddy_domain: xray-under-caddy.example.com
     enable_neo_backend_routes: true
     certbot_email: admin@example.com
     certbot_source_dir: /etc/letsencrypt/live/example.com/
@@ -39,7 +39,7 @@
     caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
     backup_keep_local: 7
     backup_keep_remote: 14
-    deploy_node_neo_v2ray: localhost
+    deploy_node_neo_xray_under_caddy: localhost
     deploy_node_zammad: localhost
     deploy_node_postgres: localhost
     deploy_node_mailcow: localhost
@@ -78,7 +78,7 @@
     pg_data_dir: /opt/postgres/data
     pg_custom_dir: /opt/postgres/custom_data
     mailcow_version: "test-mailcow-tag"
-    v2ray_client_id: "00000000-0000-0000-0000-000000000000"
+    xray_under_caddy_client_id: "00000000-0000-0000-0000-000000000000"
     xray_client_id: "00000000-0000-0000-0000-000000000000"
     xray_reality_dest: "www.example.com:443"
     xray_reality_server_names:
@@ -94,14 +94,14 @@
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
-      - src: "{{ repo_root }}/roles/apps/v2ray/templates/config.json.j2"
-        dest: json/v2ray-config.json
+      - src: "{{ repo_root }}/roles/apps/xray_under_caddy/templates/config.json.j2"
+        dest: json/xray-under-caddy-config.json
       - src: "{{ repo_root }}/roles/apps/xray/templates/config.json.j2"
         dest: json/xray-config.json
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/docker-compose.yml.j2"
         dest: compose/caddy.yml
-      - src: "{{ repo_root }}/roles/apps/v2ray/templates/docker-compose.yml.j2"
-        dest: compose/v2ray.yml
+      - src: "{{ repo_root }}/roles/apps/xray_under_caddy/templates/docker-compose.yml.j2"
+        dest: compose/xray-under-caddy.yml
       - src: "{{ repo_root }}/roles/apps/xray/templates/docker-compose.yml.j2"
         dest: compose/xray.yml
       - src: "{{ repo_root }}/roles/apps/neo_backend/templates/docker-compose.yml.j2"

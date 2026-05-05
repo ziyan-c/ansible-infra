@@ -59,7 +59,7 @@
 
     - name: Check Caddyfile includes both dynamic virtual hosts
       ansible.builtin.command:
-        cmd: "grep -E '^(example\\.com|support\\.example\\.com|v2ray\\.example\\.com)' {{ render_dir }}/caddy/Caddyfile"
+        cmd: "grep -E '^(example\\.com|support\\.example\\.com|xray-under-caddy\\.example\\.com)' {{ render_dir }}/caddy/Caddyfile"
       changed_when: false
 
     - name: Check Certbot Cloudflare credential output

@@ -16,13 +16,13 @@ docker_log_max_size: "10m"
 docker_log_max_file: "3"
 
 caddy_image: "caddy:2.11.2"
-v2ray_image: "v2fly/v2fly-core:v5.41.0"
+xray_under_caddy_image: "ghcr.io/xtls/xray-core:25.8.3"
 xray_image: "ghcr.io/xtls/xray-core:25.8.3"
 pgvector_image: "ankane/pgvector:v0.5.1"
 cloudflared_image: "cloudflare/cloudflared:2026.3.0"
 
 base_domain: example.com
-v2ray_domain: v2ray.example.com
+xray_under_caddy_domain: xray-under-caddy.example.com
 enable_neo_backend_routes: false
 certbot_email: admin@example.com
 certbot_source_dir: /etc/letsencrypt/live/example.com/
@@ -45,9 +45,9 @@ proxy_control_plane_runtime_api_host: ""
 proxy_control_plane_runtime_api_tag: proxy-control-plane-api
 proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
 proxy_control_plane_xray_runtime_api_port: 10085
-proxy_control_plane_v2ray_runtime_api_port: 10086
+proxy_control_plane_xray_under_caddy_runtime_api_port: 10086
 
-deploy_node_neo_v2ray: vps-a.example.com
+deploy_node_neo_xray_under_caddy: vps-a.example.com
 deploy_node_zammad: vps-b.example.com
 deploy_node_postgres: vps-b.example.com
 deploy_node_mailcow: vps-b.example.com
@@ -102,7 +102,7 @@ pg_custom_dir: /opt/postgres/custom_data
 
 mailcow_version: "REPLACE_WITH_MAILCOW_GIT_TAG"
 
-v2ray_client_id: "00000000-0000-0000-0000-000000000000"
+xray_under_caddy_client_id: "00000000-0000-0000-0000-000000000000"
 
 xray_client_id: "00000000-0000-0000-0000-000000000000"
 xray_reality_dest: "www.example.com:443"

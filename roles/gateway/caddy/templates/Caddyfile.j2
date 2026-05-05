@@ -1,7 +1,7 @@
 # ==========================================
-# 动态判定：如果当前机器被分配为 Neo/V2ray 节点，则渲染主站代理
+# 动态判定：如果当前机器被分配为 Neo/Xray under Caddy 节点，则渲染主站代理
 # ==========================================
-{% if inventory_hostname == deploy_node_neo_v2ray %}
+{% if inventory_hostname == deploy_node_neo_xray_under_caddy %}
 
 {{ base_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
@@ -36,13 +36,13 @@
     }
 }
 
-{{ v2ray_domain }} {
+{{ xray_under_caddy_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
     root * /usr/share/caddy
     file_server
 
-    handle /v2ray {
-        reverse_proxy v2ray-server:10010 {
+    handle {{ xray_under_caddy_ws_path | default('/v2ray') }} {
+        reverse_proxy xray-under-caddy:10010 {
             header_up X-Real-IP {header.CF-Connecting-IP}
             header_up X-Forwarded-For {header.CF-Connecting-IP}
         }

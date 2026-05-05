@@ -43,14 +43,14 @@
 # ==========================================
 # 第三阶段：业务应用层 (Apps)
 # ==========================================
-- name: 部署 V2ray 核心节点
-  hosts: v2ray_nodes        # 👈 修复：直接使用 inventory 中定义好的组名
+- name: 部署 Xray under Caddy 保险节点
+  hosts: xray_under_caddy_nodes
   become: yes
   roles:
-    - role: apps/v2ray
-      tags: ['v2ray', 'apps']
+    - role: apps/xray_under_caddy
+      tags: ['xray-under-caddy', 'apps']
 
-- name: 部署 Xray Reality 边缘节点
+- name: 部署 Xray Reality 主力节点
   hosts: xray_nodes
   become: yes
   roles:

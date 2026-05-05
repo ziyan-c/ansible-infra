@@ -1,0 +1,6 @@
+---
+- name: Restart Xray under Caddy
+  community.docker.docker_compose_v2:
+    project_src: "{{ xray_under_caddy_project_dir }}"
+    state: restarted
+  when: xray_under_caddy_manage_runtime | bool

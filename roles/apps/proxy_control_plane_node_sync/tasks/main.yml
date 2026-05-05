@@ -32,11 +32,10 @@
       - >-
         (hostvars[item].xray_public_key | default(xray_public_key | default('')))
         != 'REPLACE_ME_XRAY_REALITY_PUBLIC_KEY'
-    fail_msg: "xray_public_key is required for each Xray node sync payload."
+    fail_msg: "xray_public_key is required for each Xray Reality node sync payload."
   loop: "{{ groups.get('xray_nodes', []) }}"
   loop_control:
     label: "{{ item }}"
-
 
 - name: 校验 runtime API 内网地址已配置
   ansible.builtin.assert:
@@ -48,7 +47,7 @@
     fail_msg: >-
       Set proxy_control_plane_runtime_api_host to the node WireGuard IP
       before enabling proxy_control_plane_runtime_api_enabled.
-  loop: "{{ (groups.get('v2ray_nodes', []) + groups.get('xray_nodes', [])) | unique }}"
+  loop: "{{ (groups.get('xray_under_caddy_nodes', []) + groups.get('xray_nodes', [])) | unique }}"
   loop_control:
     label: "{{ item }}"
   when: proxy_control_plane_runtime_api_enabled | default(false) | bool
@@ -57,44 +56,45 @@
   ansible.builtin.set_fact:
     proxy_control_plane_sync_nodes: []
 
-- name: 收集 V2Ray 节点同步信息
+- name: 收集 Xray under Caddy 保险节点同步信息
   ansible.builtin.set_fact:
     proxy_control_plane_sync_nodes: >-
-      {{ proxy_control_plane_sync_nodes + [proxy_control_plane_v2ray_node] }}
+      {{ proxy_control_plane_sync_nodes + [proxy_control_plane_xray_under_caddy_node] }}
   vars:
-    proxy_control_plane_v2ray_public_host: >-
-      {{ hostvars[item].v2ray_public_host | default(v2ray_domain) }}
-    proxy_control_plane_v2ray_runtime_api_host: >-
+    proxy_control_plane_xray_under_caddy_public_host: >-
+      {{ hostvars[item].xray_under_caddy_public_host
+         | default(xray_under_caddy_domain | default('')) }}
+    proxy_control_plane_xray_under_caddy_runtime_api_host: >-
       {{ hostvars[item].proxy_control_plane_runtime_api_host
          | default(proxy_control_plane_runtime_api_host | default('')) }}
-    proxy_control_plane_v2ray_runtime_api_port: >-
-      {{ hostvars[item].proxy_control_plane_v2ray_runtime_api_port
-         | default(proxy_control_plane_v2ray_runtime_api_port) }}
-    proxy_control_plane_v2ray_node:
+    proxy_control_plane_xray_under_caddy_runtime_api_port: >-
+      {{ hostvars[item].proxy_control_plane_xray_under_caddy_runtime_api_port
+         | default(proxy_control_plane_xray_under_caddy_runtime_api_port) }}
+    proxy_control_plane_xray_under_caddy_node:
       name: >-
         {{ hostvars[item].proxy_control_plane_node_name
-           | default('v2ray-' ~ item)
+           | default('xray-under-caddy-' ~ item)
            | regex_replace('[^A-Za-z0-9_.-]', '-') }}
-      runtime: v2ray
-      hostname: "{{ proxy_control_plane_v2ray_public_host }}"
-      public_host: "{{ proxy_control_plane_v2ray_public_host }}"
+      runtime: xray
+      hostname: "{{ proxy_control_plane_xray_under_caddy_public_host }}"
+      public_host: "{{ proxy_control_plane_xray_under_caddy_public_host }}"
       region: "{{ hostvars[item].proxy_control_plane_region | default(proxy_control_plane_default_region) }}"
       protocol: vless
-      port: "{{ hostvars[item].v2ray_public_port | default(proxy_control_plane_v2ray_public_port) | int }}"
-      transport: "{{ proxy_control_plane_v2ray_transport }}"
-      security: "{{ proxy_control_plane_v2ray_security }}"
-      path: "{{ hostvars[item].v2ray_ws_path | default(proxy_control_plane_v2ray_path) }}"
-      host_header: "{{ proxy_control_plane_v2ray_public_host }}"
+      port: "{{ hostvars[item].xray_under_caddy_public_port | default(proxy_control_plane_xray_under_caddy_public_port) | int }}"
+      transport: "{{ proxy_control_plane_xray_under_caddy_transport }}"
+      security: "{{ proxy_control_plane_xray_under_caddy_security }}"
+      path: "{{ hostvars[item].xray_under_caddy_ws_path | default(proxy_control_plane_xray_under_caddy_path) }}"
+      host_header: "{{ proxy_control_plane_xray_under_caddy_public_host }}"
       runtime_api_enabled: "{{ proxy_control_plane_runtime_api_enabled | default(false) | bool }}"
-      runtime_api_host: "{{ proxy_control_plane_v2ray_runtime_api_host }}"
-      runtime_api_port: "{{ proxy_control_plane_v2ray_runtime_api_port | int }}"
+      runtime_api_host: "{{ proxy_control_plane_xray_under_caddy_runtime_api_host }}"
+      runtime_api_port: "{{ proxy_control_plane_xray_under_caddy_runtime_api_port | int }}"
       runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
       enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
-  loop: "{{ groups.get('v2ray_nodes', []) }}"
+  loop: "{{ groups.get('xray_under_caddy_nodes', []) }}"
   loop_control:
     label: "{{ item }}"
 
-- name: 收集 Xray 节点同步信息
+- name: 收集 Xray Reality 主力节点同步信息
   ansible.builtin.set_fact:
     proxy_control_plane_sync_nodes: >-
       {{ proxy_control_plane_sync_nodes + [proxy_control_plane_xray_node] }}

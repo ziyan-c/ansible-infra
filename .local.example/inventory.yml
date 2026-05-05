@@ -39,7 +39,7 @@ all:
         vps-a.example.com:
         vps-b.example.com:
 
-    v2ray_nodes:
+    xray_under_caddy_nodes:
       hosts:
         vps-a.example.com:
 

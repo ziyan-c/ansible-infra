@@ -1,0 +1,17 @@
+services:
+  xray-under-caddy:
+    image: "{{ xray_under_caddy_image }}"
+    container_name: xray-under-caddy
+    restart: unless-stopped
+{% if proxy_control_plane_runtime_api_enabled | bool %}
+    ports:
+      - "{{ proxy_control_plane_runtime_api_host }}:{{ proxy_control_plane_xray_under_caddy_runtime_api_port }}:{{ proxy_control_plane_xray_under_caddy_runtime_api_port }}"
+{% endif %}
+    volumes:
+      - ./config.json:/usr/local/etc/xray/config.json:ro
+    networks:
+      - web-proxy
+
+networks:
+  web-proxy:
+    external: true

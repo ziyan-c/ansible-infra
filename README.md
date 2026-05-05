@@ -2,7 +2,7 @@
 
 Personal Ansible playbooks for bootstrapping VPS nodes, building a WireGuard
 mesh, deploying gateway services, and running app stacks such as Caddy,
-Postgres, Mailcow, Zammad, V2Ray/Xray, and Cloudflared.
+Postgres, Mailcow, Zammad, Xray, and Cloudflared.
 
 ## Layout
 
@@ -125,11 +125,11 @@ context dumps.
 
 ## Proxy Control Plane Node Sync
 
-This repo can register deployed Xray and V2Ray nodes back into the Go
+This repo can register deployed Xray nodes back into the Go
 `proxy-control-plane` service after the app roles finish. The sync is optional
 and disabled by default. When enabled, Ansible collects hosts from
-`xray_nodes` and `v2ray_nodes`, builds the client-facing node payload, and calls
-`POST /admin/nodes/sync`. It does not write PostgreSQL directly.
+`xray_under_caddy_nodes` and `xray_nodes`, builds the client-facing node payload, and
+calls `POST /admin/nodes/sync`. It does not write PostgreSQL directly.
 
 Required private variables in `.local/group_vars/all.yml`:
 
@@ -154,13 +154,14 @@ proxy_control_plane_node_name: xray-fr-1
 proxy_control_plane_region: fr
 proxy_control_plane_node_enabled: true
 xray_public_host: node.example.com
-v2ray_public_host: v2ray.example.com
+xray_under_caddy_public_host: xray-under-caddy.example.com
 ```
 
 Runtime API management is also optional and disabled by default. When enabled,
-Xray and V2Ray keep their existing static users, but expose a gRPC management
-API only on the configured WireGuard address. Xray uses port `10085` by default
-and V2Ray uses `10086` so both roles can run on the same host.
+Xray Reality and Xray under Caddy keep their existing static users, but expose a gRPC
+management API only on the configured WireGuard address. Xray Reality uses port
+`10085` by default and Xray under Caddy uses `10086` so both roles can run on the same
+host.
 
 ```yaml
 proxy_control_plane_runtime_api_enabled: true
@@ -168,7 +169,7 @@ proxy_control_plane_runtime_api_host: "10.66.0.1"
 proxy_control_plane_runtime_api_tag: proxy-control-plane-api
 proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
 proxy_control_plane_xray_runtime_api_port: 10085
-proxy_control_plane_v2ray_runtime_api_port: 10086
+proxy_control_plane_xray_under_caddy_runtime_api_port: 10086
 ```
 
 Set `proxy_control_plane_runtime_api_host` per host when different nodes have
