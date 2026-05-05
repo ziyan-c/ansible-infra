@@ -1,0 +1,141 @@
+---
+- name: 校验控制面节点同步认证配置
+  ansible.builtin.assert:
+    that:
+      - proxy_control_plane_api_url | length > 0
+      - >-
+        (proxy_control_plane_access_token | default('') | length > 0)
+        or
+        (
+          proxy_control_plane_admin_email | default('') | length > 0
+          and proxy_control_plane_admin_password | default('') | length > 0
+        )
+    fail_msg: >-
+      Set proxy_control_plane_access_token, or set
+      proxy_control_plane_admin_email and proxy_control_plane_admin_password.
+  no_log: true
+
+- name: 校验 Xray Reality 订阅字段
+  ansible.builtin.assert:
+    that:
+      - xray_reality_server_names | default([]) | length > 0
+      - xray_reality_short_ids | default([]) | length > 0
+    fail_msg: "xray_reality_server_names and xray_reality_short_ids are required for node sync."
+  when: groups.get('xray_nodes', []) | length > 0
+
+- name: 校验 Xray Reality 公钥已配置
+  ansible.builtin.assert:
+    that:
+      - >-
+        (hostvars[item].xray_public_key | default(xray_public_key | default('')))
+        | length > 0
+      - >-
+        (hostvars[item].xray_public_key | default(xray_public_key | default('')))
+        != 'REPLACE_ME_XRAY_REALITY_PUBLIC_KEY'
+    fail_msg: "xray_public_key is required for each Xray node sync payload."
+  loop: "{{ groups.get('xray_nodes', []) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: 初始化控制面节点同步列表
+  ansible.builtin.set_fact:
+    proxy_control_plane_sync_nodes: []
+
+- name: 收集 V2Ray 节点同步信息
+  ansible.builtin.set_fact:
+    proxy_control_plane_sync_nodes: >-
+      {{ proxy_control_plane_sync_nodes + [proxy_control_plane_v2ray_node] }}
+  vars:
+    proxy_control_plane_v2ray_public_host: >-
+      {{ hostvars[item].v2ray_public_host | default(v2ray_domain) }}
+    proxy_control_plane_v2ray_node:
+      name: >-
+        {{ hostvars[item].proxy_control_plane_node_name
+           | default('v2ray-' ~ item)
+           | regex_replace('[^A-Za-z0-9_.-]', '-') }}
+      runtime: v2ray
+      hostname: "{{ proxy_control_plane_v2ray_public_host }}"
+      public_host: "{{ proxy_control_plane_v2ray_public_host }}"
+      region: "{{ hostvars[item].proxy_control_plane_region | default(proxy_control_plane_default_region) }}"
+      protocol: vless
+      port: "{{ hostvars[item].v2ray_public_port | default(proxy_control_plane_v2ray_public_port) | int }}"
+      transport: "{{ proxy_control_plane_v2ray_transport }}"
+      security: "{{ proxy_control_plane_v2ray_security }}"
+      path: "{{ hostvars[item].v2ray_ws_path | default(proxy_control_plane_v2ray_path) }}"
+      host_header: "{{ proxy_control_plane_v2ray_public_host }}"
+      enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
+  loop: "{{ groups.get('v2ray_nodes', []) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: 收集 Xray 节点同步信息
+  ansible.builtin.set_fact:
+    proxy_control_plane_sync_nodes: >-
+      {{ proxy_control_plane_sync_nodes + [proxy_control_plane_xray_node] }}
+  vars:
+    proxy_control_plane_xray_public_host: >-
+      {{ hostvars[item].xray_public_host | default(hostvars[item].ansible_host | default(item)) }}
+    proxy_control_plane_xray_public_key: >-
+      {{ hostvars[item].xray_public_key | default(xray_public_key | default('')) }}
+    proxy_control_plane_xray_node:
+      name: >-
+        {{ hostvars[item].proxy_control_plane_node_name
+           | default('xray-' ~ item)
+           | regex_replace('[^A-Za-z0-9_.-]', '-') }}
+      runtime: xray
+      hostname: "{{ proxy_control_plane_xray_public_host }}"
+      public_host: "{{ proxy_control_plane_xray_public_host }}"
+      region: "{{ hostvars[item].proxy_control_plane_region | default(proxy_control_plane_default_region) }}"
+      protocol: vless
+      port: "{{ hostvars[item].xray_public_port | default(proxy_control_plane_xray_public_port) | int }}"
+      transport: "{{ proxy_control_plane_xray_transport }}"
+      security: "{{ proxy_control_plane_xray_security }}"
+      sni: "{{ xray_reality_server_names | first }}"
+      fingerprint: "{{ hostvars[item].xray_fingerprint | default(proxy_control_plane_xray_fingerprint) }}"
+      reality_public_key: "{{ proxy_control_plane_xray_public_key }}"
+      reality_short_id: "{{ xray_reality_short_ids | first }}"
+      enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
+  loop: "{{ groups.get('xray_nodes', []) }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: 登录控制面获取访问 token
+  ansible.builtin.uri:
+    url: "{{ proxy_control_plane_api_url | regex_replace('/+$', '') }}/admin/login"
+    method: POST
+    body_format: json
+    body:
+      email: "{{ proxy_control_plane_admin_email }}"
+      password: "{{ proxy_control_plane_admin_password }}"
+    return_content: true
+    status_code: 200
+    timeout: "{{ proxy_control_plane_request_timeout }}"
+    validate_certs: "{{ proxy_control_plane_validate_certs | bool }}"
+  register: proxy_control_plane_login_response
+  no_log: true
+  when: proxy_control_plane_access_token | default('') | length == 0
+
+- name: 设置控制面访问 token
+  ansible.builtin.set_fact:
+    proxy_control_plane_bearer_token: >-
+      {{ proxy_control_plane_access_token
+         if (proxy_control_plane_access_token | default('') | length > 0)
+         else proxy_control_plane_login_response.json.access_token }}
+  no_log: true
+
+- name: 同步代理节点到控制面
+  ansible.builtin.uri:
+    url: "{{ proxy_control_plane_api_url | regex_replace('/+$', '') }}/admin/nodes/sync"
+    method: POST
+    body_format: json
+    body:
+      nodes: "{{ proxy_control_plane_sync_nodes }}"
+    headers:
+      Authorization: "Bearer {{ proxy_control_plane_bearer_token }}"
+    return_content: true
+    status_code: 200
+    timeout: "{{ proxy_control_plane_request_timeout }}"
+    validate_certs: "{{ proxy_control_plane_validate_certs | bool }}"
+  register: proxy_control_plane_sync_response
+  no_log: true
+  when: proxy_control_plane_sync_nodes | length > 0

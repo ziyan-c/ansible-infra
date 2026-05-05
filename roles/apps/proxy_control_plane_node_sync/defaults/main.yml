@@ -1,0 +1,17 @@
+---
+proxy_control_plane_node_sync_enabled: false
+proxy_control_plane_api_url: "http://127.0.0.1:9710"
+proxy_control_plane_admin_email: ""
+proxy_control_plane_admin_password: ""
+proxy_control_plane_access_token: ""
+proxy_control_plane_request_timeout: 20
+proxy_control_plane_validate_certs: true
+proxy_control_plane_default_region: ""
+proxy_control_plane_v2ray_public_port: 443
+proxy_control_plane_v2ray_transport: ws
+proxy_control_plane_v2ray_security: tls
+proxy_control_plane_v2ray_path: /v2ray
+proxy_control_plane_xray_public_port: 443
+proxy_control_plane_xray_transport: tcp
+proxy_control_plane_xray_security: reality
+proxy_control_plane_xray_fingerprint: chrome

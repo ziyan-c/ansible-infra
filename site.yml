@@ -95,3 +95,16 @@
     - role: apps/neo_backend
       tags: ['neo', 'neo_backend', 'apps']
       when: (neo_backend_enabled | default(enable_neo_backend_routes | default(false))) | bool
+
+
+# ==========================================
+# 第四阶段：控制面登记 (Control Plane Registration)
+# ==========================================
+- name: 同步代理节点目录到控制面
+  hosts: proxy_control_plane_sync_nodes
+  become: no
+  gather_facts: false
+  roles:
+    - role: apps/proxy_control_plane_node_sync
+      tags: ['control-plane', 'node-sync', 'apps']
+      when: proxy_control_plane_node_sync_enabled | default(false) | bool

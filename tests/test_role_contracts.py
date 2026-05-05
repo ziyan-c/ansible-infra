@@ -150,3 +150,22 @@ def test_backup_cron_schedules_are_declared_and_staggered():
     assert "/etc/logrotate.d/zammad_sync" in zammad
     assert "src: zammad_backup_config.j2" in zammad
     assert "dest: /opt/zammad/backup_config" in zammad
+
+def test_proxy_control_plane_node_sync_registers_xray_and_v2ray_by_api():
+    site = read_role_file("site.yml")
+    tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
+    defaults = read_role_file("roles/apps/proxy_control_plane_node_sync/defaults/main.yml")
+    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    inventory = read_role_file(".local.example/inventory.yml")
+
+    assert "apps/proxy_control_plane_node_sync" in site
+    assert "proxy_control_plane_sync_nodes" in site
+    assert "proxy_control_plane_sync_nodes" in inventory
+    assert "proxy_control_plane_node_sync_enabled: false" in defaults
+    assert "proxy_control_plane_node_sync_enabled: false" in example_vars
+    assert "xray_public_key" in example_vars
+    assert "/admin/login" in tasks
+    assert "/admin/nodes/sync" in tasks
+    assert "runtime: xray" in tasks
+    assert "runtime: v2ray" in tasks
+    assert "no_log: true" in tasks

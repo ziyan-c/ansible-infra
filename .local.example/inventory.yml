@@ -1,6 +1,8 @@
 ---
 all:
   hosts:
+    localhost:
+      ansible_connection: local
     vps-a.example.com:
       ansible_host: 203.0.113.10
       ansible_user: root
@@ -9,6 +11,10 @@ all:
       ansible_user: root
 
   children:
+    proxy_control_plane_sync_nodes:
+      hosts:
+        localhost:
+
     init_nodes:
       hosts:
         vps-a.example.com:

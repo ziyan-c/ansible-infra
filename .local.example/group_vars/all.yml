@@ -33,6 +33,14 @@ caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
 backup_keep_local: 7
 backup_keep_remote: 14
 
+proxy_control_plane_node_sync_enabled: false
+proxy_control_plane_api_url: "http://127.0.0.1:9710"
+proxy_control_plane_admin_email: "admin@example.com"
+proxy_control_plane_admin_password: "REPLACE_ME_PROXY_CONTROL_PLANE_ADMIN_PASSWORD"
+proxy_control_plane_access_token: ""
+proxy_control_plane_default_region: ""
+proxy_control_plane_validate_certs: true
+
 deploy_node_neo_v2ray: vps-a.example.com
 deploy_node_zammad: vps-b.example.com
 deploy_node_postgres: vps-b.example.com
@@ -86,6 +94,7 @@ xray_reality_dest: "www.example.com:443"
 xray_reality_server_names:
   - www.example.com
 xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
+xray_public_key: "REPLACE_ME_XRAY_REALITY_PUBLIC_KEY"
 xray_reality_short_ids:
   - "0123456789abcdef"
 

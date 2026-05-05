@@ -122,6 +122,41 @@ vault password such as one generated with `openssl rand -base64 32`. Do not
 paste rendered files from `.local/` into issue threads, logs, or generated
 context dumps.
 
+
+## Proxy Control Plane Node Sync
+
+This repo can register deployed Xray and V2Ray nodes back into the Go
+`proxy-control-plane` service after the app roles finish. The sync is optional
+and disabled by default. When enabled, Ansible collects hosts from
+`xray_nodes` and `v2ray_nodes`, builds the client-facing node payload, and calls
+`POST /admin/nodes/sync`. It does not write PostgreSQL directly.
+
+Required private variables in `.local/group_vars/all.yml`:
+
+```yaml
+proxy_control_plane_node_sync_enabled: true
+proxy_control_plane_api_url: "https://control-plane.example.com"
+proxy_control_plane_admin_email: "admin@example.com"
+proxy_control_plane_admin_password: "..."
+xray_public_key: "..."
+```
+
+You may use `proxy_control_plane_access_token` instead of the admin email and
+password if you already have a valid bearer token. For Xray Reality,
+`xray_private_key` remains the server-side value used by the Xray config, while
+`xray_public_key` is the client-facing value sent to the control plane for
+subscription generation.
+
+Per-host overrides are supported in inventory or host vars:
+
+```yaml
+proxy_control_plane_node_name: xray-fr-1
+proxy_control_plane_region: fr
+proxy_control_plane_node_enabled: true
+xray_public_host: node.example.com
+v2ray_public_host: v2ray.example.com
+```
+
 ## Safety Notes
 
 - Several roles intentionally manage root-level host state such as SSH,
