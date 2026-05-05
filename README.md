@@ -157,6 +157,24 @@ xray_public_host: node.example.com
 v2ray_public_host: v2ray.example.com
 ```
 
+Runtime API management is also optional and disabled by default. When enabled,
+Xray and V2Ray keep their existing static users, but expose a gRPC management
+API only on the configured WireGuard address. Xray uses port `10085` by default
+and V2Ray uses `10086` so both roles can run on the same host.
+
+```yaml
+proxy_control_plane_runtime_api_enabled: true
+proxy_control_plane_runtime_api_host: "10.66.0.1"
+proxy_control_plane_runtime_api_tag: proxy-control-plane-api
+proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
+proxy_control_plane_xray_runtime_api_port: 10085
+proxy_control_plane_v2ray_runtime_api_port: 10086
+```
+
+Set `proxy_control_plane_runtime_api_host` per host when different nodes have
+different WireGuard IPs. Ansible registers these API fields with the control
+plane; user add/remove reconciliation is still owned by `proxy-control-plane`.
+
 ## Safety Notes
 
 - Several roles intentionally manage root-level host state such as SSH,

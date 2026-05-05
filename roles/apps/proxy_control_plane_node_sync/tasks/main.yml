@@ -37,6 +37,22 @@
   loop_control:
     label: "{{ item }}"
 
+
+- name: 校验 runtime API 内网地址已配置
+  ansible.builtin.assert:
+    that:
+      - >-
+        (hostvars[item].proxy_control_plane_runtime_api_host
+         | default(proxy_control_plane_runtime_api_host | default('')))
+        | length > 0
+    fail_msg: >-
+      Set proxy_control_plane_runtime_api_host to the node WireGuard IP
+      before enabling proxy_control_plane_runtime_api_enabled.
+  loop: "{{ (groups.get('v2ray_nodes', []) + groups.get('xray_nodes', [])) | unique }}"
+  loop_control:
+    label: "{{ item }}"
+  when: proxy_control_plane_runtime_api_enabled | default(false) | bool
+
 - name: 初始化控制面节点同步列表
   ansible.builtin.set_fact:
     proxy_control_plane_sync_nodes: []
@@ -48,6 +64,12 @@
   vars:
     proxy_control_plane_v2ray_public_host: >-
       {{ hostvars[item].v2ray_public_host | default(v2ray_domain) }}
+    proxy_control_plane_v2ray_runtime_api_host: >-
+      {{ hostvars[item].proxy_control_plane_runtime_api_host
+         | default(proxy_control_plane_runtime_api_host | default('')) }}
+    proxy_control_plane_v2ray_runtime_api_port: >-
+      {{ hostvars[item].proxy_control_plane_v2ray_runtime_api_port
+         | default(proxy_control_plane_v2ray_runtime_api_port) }}
     proxy_control_plane_v2ray_node:
       name: >-
         {{ hostvars[item].proxy_control_plane_node_name
@@ -63,6 +85,10 @@
       security: "{{ proxy_control_plane_v2ray_security }}"
       path: "{{ hostvars[item].v2ray_ws_path | default(proxy_control_plane_v2ray_path) }}"
       host_header: "{{ proxy_control_plane_v2ray_public_host }}"
+      runtime_api_enabled: "{{ proxy_control_plane_runtime_api_enabled | default(false) | bool }}"
+      runtime_api_host: "{{ proxy_control_plane_v2ray_runtime_api_host }}"
+      runtime_api_port: "{{ proxy_control_plane_v2ray_runtime_api_port | int }}"
+      runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
       enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
   loop: "{{ groups.get('v2ray_nodes', []) }}"
   loop_control:
@@ -77,6 +103,12 @@
       {{ hostvars[item].xray_public_host | default(hostvars[item].ansible_host | default(item)) }}
     proxy_control_plane_xray_public_key: >-
       {{ hostvars[item].xray_public_key | default(xray_public_key | default('')) }}
+    proxy_control_plane_xray_runtime_api_host: >-
+      {{ hostvars[item].proxy_control_plane_runtime_api_host
+         | default(proxy_control_plane_runtime_api_host | default('')) }}
+    proxy_control_plane_xray_runtime_api_port: >-
+      {{ hostvars[item].proxy_control_plane_xray_runtime_api_port
+         | default(proxy_control_plane_xray_runtime_api_port) }}
     proxy_control_plane_xray_node:
       name: >-
         {{ hostvars[item].proxy_control_plane_node_name
@@ -94,6 +126,10 @@
       fingerprint: "{{ hostvars[item].xray_fingerprint | default(proxy_control_plane_xray_fingerprint) }}"
       reality_public_key: "{{ proxy_control_plane_xray_public_key }}"
       reality_short_id: "{{ xray_reality_short_ids | first }}"
+      runtime_api_enabled: "{{ proxy_control_plane_runtime_api_enabled | default(false) | bool }}"
+      runtime_api_host: "{{ proxy_control_plane_xray_runtime_api_host }}"
+      runtime_api_port: "{{ proxy_control_plane_xray_runtime_api_port | int }}"
+      runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
       enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
   loop: "{{ groups.get('xray_nodes', []) }}"
   loop_control:

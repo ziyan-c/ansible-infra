@@ -6,5 +6,8 @@ services:
     ports:
       - "443:443"
       - "443:443/udp"
+{% if proxy_control_plane_runtime_api_enabled | bool %}
+      - "{{ proxy_control_plane_runtime_api_host }}:{{ proxy_control_plane_xray_runtime_api_port }}:{{ proxy_control_plane_xray_runtime_api_port }}"
+{% endif %}
     volumes:
       - ./config.json:/usr/local/etc/xray/config.json:ro

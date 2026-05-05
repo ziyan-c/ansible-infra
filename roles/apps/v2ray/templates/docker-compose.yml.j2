@@ -3,7 +3,11 @@ services:
     image: "{{ v2ray_image }}"
     container_name: v2ray-server
     restart: unless-stopped
-    command: run -c /etc/v2ray/config.json 
+    command: run -c /etc/v2ray/config.json
+{% if proxy_control_plane_runtime_api_enabled | bool %}
+    ports:
+      - "{{ proxy_control_plane_runtime_api_host }}:{{ proxy_control_plane_v2ray_runtime_api_port }}:{{ proxy_control_plane_v2ray_runtime_api_port }}"
+{% endif %}
     volumes:
       - ./config.json:/etc/v2ray/config.json:ro
     # ❌ 删除了 ports 映射，彻底切断外部直连，仅限内部 web-proxy 访问

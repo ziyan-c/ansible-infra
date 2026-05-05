@@ -31,6 +31,22 @@ if command -v jq >/dev/null 2>&1; then
 		jq -e . "$config" >/dev/null
 	done < <(find "$render_dir/json" -type f -name '*.json')
 
+	jq -e '.api.tag == "proxy-control-plane-api"' \
+		"$render_dir/json/v2ray-config.json" >/dev/null
+	jq -e '.api.tag == "proxy-control-plane-api"' \
+		"$render_dir/json/xray-config.json" >/dev/null
+	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
+		"$render_dir/json/v2ray-config.json" >/dev/null
+	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
+		"$render_dir/json/xray-config.json" >/dev/null
+	jq -e '.inbounds[0].tag == "proxy-control-plane-vless-in"' \
+		"$render_dir/json/v2ray-config.json" >/dev/null
+	jq -e '.inbounds[0].tag == "proxy-control-plane-vless-in"' \
+		"$render_dir/json/xray-config.json" >/dev/null
+	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10086' \
+		"$render_dir/json/v2ray-config.json" >/dev/null
+	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10085' \
+		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.inbounds[0].streamSettings.wsSettings.path == "/v2ray"' \
 		"$render_dir/json/v2ray-config.json" >/dev/null
 	jq -e '.inbounds[0].streamSettings.security == "reality"' \

@@ -15,3 +15,9 @@ proxy_control_plane_xray_public_port: 443
 proxy_control_plane_xray_transport: tcp
 proxy_control_plane_xray_security: reality
 proxy_control_plane_xray_fingerprint: chrome
+proxy_control_plane_runtime_api_enabled: false
+proxy_control_plane_runtime_api_host: ""
+proxy_control_plane_runtime_api_tag: proxy-control-plane-api
+proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
+proxy_control_plane_xray_runtime_api_port: 10085
+proxy_control_plane_v2ray_runtime_api_port: 10086

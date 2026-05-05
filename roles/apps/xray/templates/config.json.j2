@@ -2,9 +2,28 @@
     "log": {
         "loglevel": "warning"
     },
+{% if proxy_control_plane_runtime_api_enabled | bool %}
+    "api": {
+        "tag": "{{ proxy_control_plane_runtime_api_tag }}",
+        "services": [
+            "HandlerService",
+            "StatsService"
+        ]
+    },
+    "stats": {},
+{% endif %}
     "routing": {
         "domainStrategy": "AsIs",
         "rules": [
+{% if proxy_control_plane_runtime_api_enabled | bool %}
+            {
+                "type": "field",
+                "inboundTag": [
+                    "{{ proxy_control_plane_runtime_api_tag }}"
+                ],
+                "outboundTag": "{{ proxy_control_plane_runtime_api_tag }}"
+            },
+{% endif %}
             {
                 "type": "field",
                 "ip": [
@@ -21,6 +40,7 @@
     },
     "inbounds": [
         {
+            "tag": "{{ proxy_control_plane_runtime_inbound_tag }}",
             "port": 443,
             "protocol": "vless",
             "settings": {
@@ -44,7 +64,16 @@
                     "shortIds": {{ xray_reality_short_ids | to_json }}
                 }
             }
-        }
+        }{% if proxy_control_plane_runtime_api_enabled | bool %},
+        {
+            "tag": "{{ proxy_control_plane_runtime_api_tag }}",
+            "listen": "0.0.0.0",
+            "port": {{ proxy_control_plane_xray_runtime_api_port | int }},
+            "protocol": "dokodemo-door",
+            "settings": {
+                "address": "127.0.0.1"
+            }
+        }{% endif %}
     ],
     "outbounds": [
         {

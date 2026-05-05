@@ -1,4 +1,13 @@
 ---
+- name: 校验 Proxy Control Plane runtime API 绑定地址 (Xray)
+  ansible.builtin.assert:
+    that:
+      - proxy_control_plane_runtime_api_host | default('') | length > 0
+    fail_msg: >-
+      Set proxy_control_plane_runtime_api_host to this host's WireGuard IP
+      before enabling proxy_control_plane_runtime_api_enabled.
+  when: proxy_control_plane_runtime_api_enabled | default(false) | bool
+
 - name: 创建 Xray 工作目录
   file:
     path: "{{ xray_project_dir }}"
