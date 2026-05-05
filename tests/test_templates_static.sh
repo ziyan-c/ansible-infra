@@ -57,8 +57,14 @@ assert_contains "$render_dir/certbot/cloudflare.ini" \
 assert_contains "$render_dir/wireguard/wg0.conf" "Address = 10.66.0.1/24"
 assert_contains "$render_dir/wireguard/wg0.conf" "Endpoint = vps-b.example.com:51820"
 assert_contains "$render_dir/wireguard/wg0.conf" "AllowedIPs = 10.66.0.2/32"
+assert_contains "$render_dir/wireguard/wg0.conf" \
+	"PresharedKey = REPLACE_ME_WG_PSK_VPS_A_VPS_B"
+assert_contains "$render_dir/wireguard/wg0.conf" \
+	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"Endpoint = vps-a.example.com:51820"
+assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
+	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"AllowedIPs = 0.0.0.0/0, ::/0"
 

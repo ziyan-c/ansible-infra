@@ -5,9 +5,16 @@ Address = {{ wg_network_prefix }}.{{ item[0].value.ip_suffix }}/24  # <-- ✅ �
 DNS = {{ wg_dns }}
 MTU = 1280
 
+{% set wg_psks = wg_preshared_keys | default({}) %}
+{% set wg_client_psks = wg_psks.client_pairs | default({}) %}
+{% set psk_key = item[0].key ~ '__' ~ item[1].key %}
+{% set psk = wg_client_psks[psk_key] | default('') %}
 [Peer]
 # Target Server: {{ item[1].key | upper }} ({{ item[1].value.hostname }})
 PublicKey = {{ item[1].value.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
 Endpoint = {{ item[1].value.endpoint }}:{{ wg_port }}
 # 允许所有流量通过该服务器 (全局代理)
 AllowedIPs = 0.0.0.0/0, ::/0

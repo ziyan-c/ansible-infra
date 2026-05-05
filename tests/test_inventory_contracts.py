@@ -145,6 +145,31 @@ def test_wireguard_ip_suffixes_are_unique(inventory_context):
     assert len(suffixes) == len(set(suffixes))
 
 
+def test_wireguard_preshared_keys_cover_all_peer_pairs(inventory_context):
+    all_vars = inventory_context["all_vars"]
+    wg_servers = all_vars["wg_servers"]
+    wg_clients = all_vars["wg_clients"]
+    wg_psks = all_vars.get("wg_preshared_keys", {})
+    server_psks = wg_psks.get("server_pairs", {})
+    client_psks = wg_psks.get("client_pairs", {})
+
+    expected_server_pairs = {
+        "__".join(sorted([left, right]))
+        for index, left in enumerate(wg_servers)
+        for right in list(wg_servers)[index + 1 :]
+    }
+    expected_client_pairs = {
+        f"{client}__{server}"
+        for client in wg_clients
+        for server in wg_servers
+    }
+
+    assert set(server_psks) == expected_server_pairs
+    assert set(client_psks) == expected_client_pairs
+    assert all(value for value in server_psks.values())
+    assert all(value for value in client_psks.values())
+
+
 def test_tunnel_hosts_have_cloudflare_tunnel_tokens(inventory_context):
     missing = []
 

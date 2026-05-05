@@ -7,8 +7,13 @@
     {% set my_node = srv %}
   {% endif %}
 {% endfor %} #}
-# 直接从 wg_servers 的所有值中，筛选出 hostname 等于当前机器名字的那一项
-{% set my_node = wg_servers.values() | selectattr('hostname', 'equalto', inventory_hostname) | first %}
+# 直接从 wg_servers 中筛选出 hostname 等于当前机器名字的那一项
+{% set my_node_item = wg_servers | dict2items | selectattr('value.hostname', 'equalto', inventory_hostname) | first %}
+{% set my_name = my_node_item.key %}
+{% set my_node = my_node_item.value %}
+{% set wg_psks = wg_preshared_keys | default({}) %}
+{% set wg_server_psks = wg_psks.server_pairs | default({}) %}
+{% set wg_client_psks = wg_psks.client_pairs | default({}) %}
 
 [Interface]
 # 本机分配的内网 IP
@@ -26,9 +31,15 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j A
 # ===============================================
 {% for name, peer in wg_servers.items() %}
 {% if peer.hostname != inventory_hostname %}
+{% set pair_names = [my_name, name] | sort %}
+{% set psk_key = pair_names[0] ~ '__' ~ pair_names[1] %}
+{% set psk = wg_server_psks[psk_key] | default('') %}
 [Peer]
 # Server: {{ peer.hostname }}
 PublicKey = {{ peer.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
 Endpoint = {{ peer.endpoint }}:{{ wg_port }}
 # 核心逻辑：服务器之间只允许内网 IP 互通，不互相代理外网流量
 AllowedIPs = {{ wg_network_prefix }}.{{ peer.ip_suffix }}/32  # <-- ✅ 改成这样
@@ -40,9 +51,14 @@ PersistentKeepalive = 25
 # 个人设备客户端
 # ===============================================
 {% for name, client in wg_clients.items() %}
+{% set psk_key = name ~ '__' ~ my_name %}
+{% set psk = wg_client_psks[psk_key] | default('') %}
 [Peer]
 # Client: {{ name }}
 PublicKey = {{ client.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
 # 允许客户端的 IP 连入
 AllowedIPs = {{ wg_network_prefix }}.{{ client.ip_suffix }}/32  # <-- ✅ 改成 client
 {% endfor %}
