@@ -29,6 +29,10 @@ certbot_source_dir: /etc/letsencrypt/live/example.com/
 certbot_dest_dir: /opt/shared-certs/example.com
 cf_api_token: "REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
 caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
+proxy_control_plane_subscription_proxy_enabled: false
+proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
+proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_legacy_paths: []
 
 backup_keep_local: 7
 backup_keep_remote: 14
@@ -45,7 +49,7 @@ proxy_control_plane_runtime_api_host: ""
 proxy_control_plane_runtime_api_tag: proxy-control-plane-api
 proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
 proxy_control_plane_xray_runtime_api_port: 10085
-proxy_control_plane_xray_under_caddy_runtime_api_port: 10086
+proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
 
 deploy_node_neo_xray_under_caddy: vps-a.example.com
 deploy_node_zammad: vps-b.example.com

@@ -18,6 +18,10 @@
     neo_backend_publish_wireguard: true
     proxy_control_plane_runtime_api_enabled: true
     proxy_control_plane_runtime_api_host: "10.66.0.1"
+    proxy_control_plane_subscription_proxy_enabled: true
+    proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
+    proxy_control_plane_subscription_legacy_paths:
+      - /legacy-public.txt
     neo_rag_proxy_port: 8000
     neo_llm_proxy_port: 8080
     config_templates:

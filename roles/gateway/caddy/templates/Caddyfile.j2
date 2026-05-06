@@ -1,3 +1,32 @@
+{% macro proxy_control_plane_subscription_routes() %}
+{% if proxy_control_plane_subscription_proxy_enabled | default(false) | bool %}
+{% set proxy_control_plane_legacy_subscription_paths = proxy_control_plane_subscription_legacy_paths | default([]) %}
+{% if proxy_control_plane_legacy_subscription_paths | length > 0 %}
+    @proxy_control_plane_legacy_subscriptions {
+{% for legacy_subscription_path in proxy_control_plane_legacy_subscription_paths %}
+        path {{ legacy_subscription_path }}
+{% endfor %}
+    }
+    handle @proxy_control_plane_legacy_subscriptions {
+        rewrite * /legacy-sub{uri}
+        reverse_proxy {{ proxy_control_plane_subscription_proxy_upstream | default(proxy_control_plane_api_url | default('http://127.0.0.1:9710')) }} {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+{% endif %}
+
+    handle {{ proxy_control_plane_subscription_public_path | default('/sub') }}* {
+        reverse_proxy {{ proxy_control_plane_subscription_proxy_upstream | default(proxy_control_plane_api_url | default('http://127.0.0.1:9710')) }} {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+{% endif %}
+{% endmacro %}
+
 # ==========================================
 # 动态判定：如果当前机器被分配为 Neo/Xray under Caddy 节点，则渲染主站代理
 # ==========================================
@@ -6,7 +35,6 @@
 {{ base_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
     root * /usr/share/caddy
-    file_server
 
     header {
         Access-Control-Allow-Origin "https://{{ base_domain }}"
@@ -34,12 +62,17 @@
             {{ caddy_basic_auth_hash }}
         }
     }
+
+{{ proxy_control_plane_subscription_routes() }}
+
+    file_server
 }
 
 {{ xray_under_caddy_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
     root * /usr/share/caddy
-    file_server
+
+{{ proxy_control_plane_subscription_routes() }}
 
     handle {{ xray_under_caddy_ws_path | default('/v2ray') }} {
         reverse_proxy xray-under-caddy:10010 {
@@ -47,6 +80,8 @@
             header_up X-Forwarded-For {header.CF-Connecting-IP}
         }
     }
+
+    file_server
 }
 {% endif %}
 

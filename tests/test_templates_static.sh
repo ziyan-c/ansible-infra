@@ -35,6 +35,10 @@ if command -v jq >/dev/null 2>&1; then
 		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.api.tag == "proxy-control-plane-api"' \
 		"$render_dir/json/xray-config.json" >/dev/null
+	jq -e '.policy.levels["0"].statsUserUplink == true and .policy.levels["0"].statsUserDownlink == true' \
+		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
+	jq -e '.policy.levels["0"].statsUserUplink == true and .policy.levels["0"].statsUserDownlink == true' \
+		"$render_dir/json/xray-config.json" >/dev/null
 	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
 		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.routing.rules[0].outboundTag == "proxy-control-plane-api"' \
@@ -43,7 +47,7 @@ if command -v jq >/dev/null 2>&1; then
 		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.inbounds[0].tag == "proxy-control-plane-vless-in"' \
 		"$render_dir/json/xray-config.json" >/dev/null
-	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10086' \
+	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10085' \
 		"$render_dir/json/xray-under-caddy-config.json" >/dev/null
 	jq -e '.inbounds[1].protocol == "dokodemo-door" and .inbounds[1].port == 10085' \
 		"$render_dir/json/xray-config.json" >/dev/null
@@ -61,6 +65,10 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "xray-under-caddy.example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /sub*"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "path /legacy-public.txt"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "rewrite * /legacy-sub{uri}"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.10:9710"
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
 assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"

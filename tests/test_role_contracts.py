@@ -193,4 +193,16 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     assert "proxy_control_plane_runtime_api_tag: proxy-control-plane-api" in example_vars
     assert "proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in" in example_vars
     assert "proxy_control_plane_xray_runtime_api_port: 10085" in example_vars
-    assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10086" in example_vars
+    assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10085" in example_vars
+
+def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
+    caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
+    caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
+    example_vars = read_role_file(".local.example/group_vars/all.yml")
+
+    assert "proxy_control_plane_subscription_proxy_enabled: false" in caddy_defaults
+    assert "proxy_control_plane_subscription_proxy_enabled: false" in example_vars
+    assert "proxy_control_plane_subscription_proxy_upstream" in caddy_template
+    assert "handle {{ proxy_control_plane_subscription_public_path" in caddy_template
+    assert "rewrite * /legacy-sub{uri}" in caddy_template
+    assert "proxy_control_plane_subscription_legacy_paths" in caddy_template

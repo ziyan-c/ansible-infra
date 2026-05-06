@@ -159,9 +159,12 @@ xray_under_caddy_public_host: xray-under-caddy.example.com
 
 Runtime API management is also optional and disabled by default. When enabled,
 Xray Reality and Xray under Caddy keep their existing static users, but expose a gRPC
-management API only on the configured WireGuard address. Xray Reality uses port
-`10085` by default and Xray under Caddy uses `10086` so both roles can run on the same
-host.
+management API only on the configured WireGuard address. Both roles use port
+`10085` by default; each node binds that port on its own WireGuard IP. The API
+enables both `HandlerService` for user reconciliation and `StatsService` for
+traffic collection. The roles also render `stats: {}` plus user uplink/downlink
+policy so `proxy-control-plane` can aggregate VLESS traffic through Xray's stats
+API.
 
 ```yaml
 proxy_control_plane_runtime_api_enabled: true
@@ -169,12 +172,29 @@ proxy_control_plane_runtime_api_host: "10.66.0.1"
 proxy_control_plane_runtime_api_tag: proxy-control-plane-api
 proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
 proxy_control_plane_xray_runtime_api_port: 10085
-proxy_control_plane_xray_under_caddy_runtime_api_port: 10086
+proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
 ```
 
 Set `proxy_control_plane_runtime_api_host` per host when different nodes have
 different WireGuard IPs. Ansible registers these API fields with the control
 plane; user add/remove reconciliation is still owned by `proxy-control-plane`.
+
+Subscription publishing can also be delegated to the control plane. Caddy can
+proxy public subscription paths to `proxy-control-plane` while leaving the
+existing static files in `/opt/caddy/site` untouched as a compatibility backup.
+The long-term source of truth is still PostgreSQL; Caddy only forwards requests.
+
+```yaml
+proxy_control_plane_subscription_proxy_enabled: true
+proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
+proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_legacy_paths:
+  - /legacy-public.txt
+```
+
+The legacy paths are rewritten to `/legacy-sub{uri}` before proxying. Import the
+old public file into the control plane first, then keep the static file in place
+until client migration is complete.
 
 ## Safety Notes
 
