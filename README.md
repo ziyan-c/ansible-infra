@@ -86,8 +86,8 @@ release job first runs `make test`, then publishes a source archive generated
 from the tagged tree plus `SHA256SUMS`.
 
 ```bash
-git tag -a v0.1.0 -m "v0.1.0"
-git push origin v0.1.0
+git tag -a v0.1.1 -m "v0.1.1"
+git push origin v0.1.1
 ```
 
 Tags containing `-alpha`, `-beta`, `-rc`, or `-pre` are marked as pre-releases.
@@ -133,7 +133,7 @@ Example private variables:
 
 ```yaml
 proxy_control_plane_enabled: true
-proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
 proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
@@ -141,10 +141,10 @@ proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
 
 The role copies the private env file to
 `/opt/proxy-control-plane/app.env` with `0600` permissions, and Docker Compose
-loads it through `env_file`. Compose still injects non-secret runtime overrides
-such as the listen address, runtime sync interval, traffic sync interval, and
-maintenance retention, so deployment policy stays in Ansible while credentials
-stay isolated in the env file.
+loads it through `env_file`. Put every `PCP_*` runtime setting in that env file,
+including `PCP_LISTEN_ADDR=0.0.0.0:9710`, runtime sync, traffic sync, and
+maintenance retention. Compose only describes the image, restart policy, env
+file, and host port binding.
 
 Private GHCR images can be pulled by setting `proxy_control_plane_ghcr_username`
 and `proxy_control_plane_ghcr_token`. Public GHCR images do not need a login.

@@ -185,7 +185,7 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "apps/proxy_control_plane" in site
     assert "proxy_control_plane_nodes" in site
     assert "proxy_control_plane_nodes" in inventory
-    assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"' in defaults
+    assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"' in defaults
     assert "proxy_control_plane_enabled: false" in defaults
     assert "docker compose pull api" in tasks
     assert "docker compose run --rm api" in tasks
@@ -200,8 +200,8 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "PCP_ADMIN_PASSWORD" not in compose
     assert "PCP_SECRET_KEY" not in compose
     assert "PCP_DATABASE_ENCRYPTION_KEY" not in compose
-    assert "PCP_LISTEN_ADDR" in compose
-    assert "PCP_RUNTIME_SYNC_ENABLED" in compose
+    assert "PCP_LISTEN_ADDR" not in compose
+    assert "PCP_RUNTIME_SYNC_ENABLED" not in compose
     assert "proxy_control_plane_enabled: false" in example_vars
 
 def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():

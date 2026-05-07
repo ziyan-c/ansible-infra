@@ -7,20 +7,5 @@ services:
     restart: unless-stopped
     env_file:
       - ./app.env
-    environment:
-      PCP_LISTEN_ADDR: "{{ proxy_control_plane_listen_addr }}"
-      PCP_RUNTIME_SYNC_ENABLED: "{{ proxy_control_plane_runtime_sync_enabled | bool | ternary('true', 'false') }}"
-      PCP_RUNTIME_SYNC_INTERVAL: "{{ proxy_control_plane_runtime_sync_interval }}"
-      PCP_RUNTIME_SYNC_TIMEOUT: "{{ proxy_control_plane_runtime_sync_timeout }}"
-      PCP_RUNTIME_SYNC_CONCURRENCY: "{{ proxy_control_plane_runtime_sync_concurrency | int }}"
-      PCP_TRAFFIC_SYNC_ENABLED: "{{ proxy_control_plane_traffic_sync_enabled | bool | ternary('true', 'false') }}"
-      PCP_TRAFFIC_SYNC_INTERVAL: "{{ proxy_control_plane_traffic_sync_interval }}"
-      PCP_TRAFFIC_SYNC_TIMEOUT: "{{ proxy_control_plane_traffic_sync_timeout }}"
-      PCP_TRAFFIC_SYNC_CONCURRENCY: "{{ proxy_control_plane_traffic_sync_concurrency | int }}"
-      PCP_MAINTENANCE_CLEANUP_ENABLED: "{{ proxy_control_plane_maintenance_cleanup_enabled | bool | ternary('true', 'false') }}"
-      PCP_MAINTENANCE_CLEANUP_INTERVAL: "{{ proxy_control_plane_maintenance_cleanup_interval }}"
-      PCP_MAINTENANCE_TRAFFIC_RETENTION: "{{ proxy_control_plane_maintenance_traffic_retention }}"
-      PCP_MAINTENANCE_TRAFFIC_DAILY_RETENTION: "{{ proxy_control_plane_maintenance_traffic_daily_retention }}"
-      PCP_MAINTENANCE_AUDIT_RETENTION: "{{ proxy_control_plane_maintenance_audit_retention }}"
     ports:
       - "{{ proxy_control_plane_bind_host }}:{{ proxy_control_plane_host_port | int }}:{{ proxy_control_plane_container_port | int }}"

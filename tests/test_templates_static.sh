@@ -75,7 +75,7 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \
-	"ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
+	"ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \
 	'"127.0.0.1:9710:9710"'
 assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"

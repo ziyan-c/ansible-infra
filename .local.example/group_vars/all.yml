@@ -34,15 +34,10 @@ proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
 proxy_control_plane_subscription_public_path: /sub
 
 proxy_control_plane_enabled: false
-proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
 proxy_control_plane_bind_host: "127.0.0.1"
 proxy_control_plane_host_port: 9710
 proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
-proxy_control_plane_runtime_sync_enabled: true
-proxy_control_plane_runtime_sync_interval: 5m
-proxy_control_plane_traffic_sync_enabled: true
-proxy_control_plane_traffic_sync_interval: 10m
-proxy_control_plane_maintenance_cleanup_enabled: true
 
 backup_keep_local: 7
 backup_keep_remote: 14
