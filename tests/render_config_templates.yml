@@ -20,8 +20,6 @@
     proxy_control_plane_runtime_api_host: "10.66.0.1"
     proxy_control_plane_subscription_proxy_enabled: true
     proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
-    proxy_control_plane_subscription_legacy_paths:
-      - /legacy-public.txt
     neo_rag_proxy_port: 8000
     neo_llm_proxy_port: 8080
     config_templates:
@@ -90,6 +88,22 @@
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    proxy_control_plane_environment: production
+    proxy_control_plane_project_dir: /opt/proxy-control-plane
+    proxy_control_plane_container_name: proxy-control-plane_api
+    proxy_control_plane_container_port: 9710
+    proxy_control_plane_listen_addr: "0.0.0.0:9710"
+    proxy_control_plane_access_token_expire_minutes: 60
+    proxy_control_plane_auto_create_database: true
+    proxy_control_plane_auto_migrate: false
+    proxy_control_plane_runtime_sync_timeout: 30s
+    proxy_control_plane_runtime_sync_concurrency: 3
+    proxy_control_plane_traffic_sync_timeout: 30s
+    proxy_control_plane_traffic_sync_concurrency: 3
+    proxy_control_plane_maintenance_cleanup_interval: 24h
+    proxy_control_plane_maintenance_traffic_retention: 7d
+    proxy_control_plane_maintenance_traffic_daily_retention: 30d
+    proxy_control_plane_maintenance_audit_retention: 90d
     config_templates:
       - src: "{{ repo_root }}/roles/apps/postgres/templates/docker-compose.yml.j2"
         dest: compose/postgres.yml
@@ -97,6 +111,8 @@
         dest: compose/zammad.yml
       - src: "{{ repo_root }}/roles/apps/cloudflared/templates/docker-compose.yml.j2"
         dest: compose/cloudflared.yml
+      - src: "{{ repo_root }}/roles/apps/proxy_control_plane/templates/docker-compose.yml.j2"
+        dest: compose/proxy-control-plane.yml
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
         dest: caddy/vps-b.Caddyfile
   tasks:

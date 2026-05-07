@@ -4,6 +4,7 @@ xray_project_dir: /opt/xray
 xray_owner: root
 xray_group: root
 xray_manage_runtime: true
+xray_static_clients: []
 proxy_control_plane_runtime_api_enabled: false
 proxy_control_plane_runtime_api_host: ""
 proxy_control_plane_runtime_api_tag: proxy-control-plane-api

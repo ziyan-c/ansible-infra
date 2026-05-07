@@ -52,12 +52,7 @@
             "port": 443,
             "protocol": "vless",
             "settings": {
-                "clients": [
-                    {
-                        "id": "{{ xray_client_id }}",
-                        "flow": "xtls-rprx-vision"
-                    }
-                ],
+                "clients": {{ xray_static_clients | default([]) | to_json }},
                 "decryption": "none"
             },
             "streamSettings": {

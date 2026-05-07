@@ -1,6 +1,6 @@
 ---
 proxy_control_plane_node_sync_enabled: false
-proxy_control_plane_api_url: http://127.0.0.1:9710""
+proxy_control_plane_api_url: "http://127.0.0.1:9710"
 proxy_control_plane_admin_email: ""
 proxy_control_plane_admin_password: ""
 proxy_control_plane_access_token: ""

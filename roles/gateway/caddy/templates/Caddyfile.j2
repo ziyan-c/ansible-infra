@@ -1,23 +1,7 @@
 {% macro proxy_control_plane_subscription_routes() %}
 {% if proxy_control_plane_subscription_proxy_enabled | default(false) | bool %}
-{% set proxy_control_plane_legacy_subscription_paths = proxy_control_plane_subscription_legacy_paths | default([]) %}
-{% if proxy_control_plane_legacy_subscription_paths | length > 0 %}
-    @proxy_control_plane_legacy_subscriptions {
-{% for legacy_subscription_path in proxy_control_plane_legacy_subscription_paths %}
-        path {{ legacy_subscription_path }}
-{% endfor %}
-    }
-    handle @proxy_control_plane_legacy_subscriptions {
-        rewrite * /legacy-sub{uri}
-        reverse_proxy {{ proxy_control_plane_subscription_proxy_upstream | default(proxy_control_plane_api_url | default('http://127.0.0.1:9710')) }} {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-{% endif %}
-
-    handle {{ proxy_control_plane_subscription_public_path | default('/sub') }}* {
+    handle_path {{ proxy_control_plane_subscription_public_path | default('/sub') }}/* {
+        rewrite * /sub{uri}
         reverse_proxy {{ proxy_control_plane_subscription_proxy_upstream | default(proxy_control_plane_api_url | default('http://127.0.0.1:9710')) }} {
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}

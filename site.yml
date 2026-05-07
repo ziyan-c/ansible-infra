@@ -85,6 +85,14 @@
     - role: apps/cloudflared
       tags: ['cloudflared', 'tunnel', 'apps']
 
+- name: 部署 Proxy Control Plane 控制面
+  hosts: proxy_control_plane_nodes
+  become: yes
+  roles:
+    - role: apps/proxy_control_plane
+      tags: ['proxy-control-plane', 'control-plane', 'apps']
+      when: proxy_control_plane_enabled | default(false) | bool
+
 
 
 - name: 部署 AI 服务网关与隧道

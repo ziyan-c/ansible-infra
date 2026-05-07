@@ -52,11 +52,7 @@
       "port": {{ xray_under_caddy_internal_port | default(10010) | int }},
       "protocol": "vless",
       "settings": {
-        "clients": [
-          {
-            "id": "{{ xray_under_caddy_client_id }}"
-          }
-        ],
+        "clients": {{ xray_under_caddy_static_clients | default([]) | to_json }},
         "decryption": "none"
       },
       "streamSettings": {

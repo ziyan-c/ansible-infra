@@ -162,13 +162,43 @@ def test_proxy_control_plane_node_sync_registers_xray_under_caddy_and_xray_by_ap
     assert "proxy_control_plane_sync_nodes" in site
     assert "proxy_control_plane_sync_nodes" in inventory
     assert "proxy_control_plane_node_sync_enabled: false" in defaults
+    assert 'proxy_control_plane_api_url: "http://127.0.0.1:9710"' in defaults
     assert "proxy_control_plane_node_sync_enabled: false" in example_vars
     assert "xray_public_key" in example_vars
+    assert "校验 Xray under Caddy 订阅域名" in tasks
     assert "/admin/login" in tasks
     assert "/admin/nodes/sync" in tasks
     assert "runtime: xray" in tasks
     assert "xray_under_caddy_nodes" in tasks
+    assert "proxy_control_plane_node_enabled | default(true)" not in tasks
+    assert "combine({'enabled':" in tasks
     assert "no_log: true" in tasks
+
+def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start():
+    site = read_role_file("site.yml")
+    tasks = read_role_file("roles/apps/proxy_control_plane/tasks/main.yml")
+    defaults = read_role_file("roles/apps/proxy_control_plane/defaults/main.yml")
+    compose = read_role_file("roles/apps/proxy_control_plane/templates/docker-compose.yml.j2")
+    inventory = read_role_file(".local.example/inventory.yml")
+    example_vars = read_role_file(".local.example/group_vars/all.yml")
+
+    assert "apps/proxy_control_plane" in site
+    assert "proxy_control_plane_nodes" in site
+    assert "proxy_control_plane_nodes" in inventory
+    assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"' in defaults
+    assert "proxy_control_plane_enabled: false" in defaults
+    assert "docker compose run --pull always --rm api" in tasks
+    assert "db migrate --no-local-config" in tasks
+    assert "pull: always" in tasks
+    assert "no_log: true" in tasks
+    assert "env_file:" not in compose
+    assert "PCP_DATABASE_URL" in compose
+    assert "PCP_ADMIN_PASSWORD" in compose
+    assert "PCP_SECRET_KEY" in compose
+    assert "PCP_DATABASE_ENCRYPTION_KEY" in compose
+    assert "PCP_LISTEN_ADDR" in compose
+    assert "PCP_RUNTIME_SYNC_ENABLED" in compose
+    assert "proxy_control_plane_enabled: false" in example_vars
 
 def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_config = read_role_file("roles/apps/xray/templates/config.json.j2")
@@ -194,6 +224,8 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     assert "proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in" in example_vars
     assert "proxy_control_plane_xray_runtime_api_port: 10085" in example_vars
     assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10085" in example_vars
+    assert '"clients": {{ xray_static_clients | default([]) | to_json }}' in xray_config
+    assert '"clients": {{ xray_under_caddy_static_clients | default([]) | to_json }}' in xray_under_caddy_config
 
 def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
     caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
@@ -203,6 +235,7 @@ def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
     assert "proxy_control_plane_subscription_proxy_enabled: false" in caddy_defaults
     assert "proxy_control_plane_subscription_proxy_enabled: false" in example_vars
     assert "proxy_control_plane_subscription_proxy_upstream" in caddy_template
-    assert "handle {{ proxy_control_plane_subscription_public_path" in caddy_template
-    assert "rewrite * /legacy-sub{uri}" in caddy_template
-    assert "proxy_control_plane_subscription_legacy_paths" in caddy_template
+    assert "handle_path {{ proxy_control_plane_subscription_public_path" in caddy_template
+    assert "rewrite * /sub{uri}" in caddy_template
+    assert "legacy-sub" not in caddy_template
+    assert "proxy_control_plane_subscription_legacy_paths" not in caddy_template

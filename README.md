@@ -123,6 +123,36 @@ paste rendered files from `.local/` into issue threads, logs, or generated
 context dumps.
 
 
+## Proxy Control Plane Deployment
+
+This repo can also deploy the Go `proxy-control-plane` service itself. The role
+pulls a versioned GHCR image on the target host, writes `/opt/proxy-control-plane`
+runtime files, runs SQL migrations, and starts the API with Docker Compose.
+
+Example private variables:
+
+```yaml
+proxy_control_plane_enabled: true
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
+proxy_control_plane_bind_host: "10.66.0.10"
+proxy_control_plane_host_port: 9710
+proxy_control_plane_database_url: "postgres://user:password@db.example.com:5432/proxy_control?sslmode=require"
+proxy_control_plane_admin_email: "admin@example.com"
+proxy_control_plane_admin_password: "..."
+proxy_control_plane_secret_key: "..."
+proxy_control_plane_database_encryption_key: "..."
+```
+
+The role renders these values directly into Docker Compose `environment:`
+entries. The generated compose file is written as `0600` and task output is
+hidden with `no_log: true` because it contains secrets. If you already keep the
+app's private `.local/app.env`, you can still reuse it by loading individual
+keys into Ansible variables with `lookup('ansible.builtin.ini', ...)`; the
+remote container does not need a separate `app.env` file.
+
+Private GHCR images can be pulled by setting `proxy_control_plane_ghcr_username`
+and `proxy_control_plane_ghcr_token`. Public GHCR images do not need a login.
+
 ## Proxy Control Plane Node Sync
 
 This repo can register deployed Xray nodes back into the Go
@@ -157,9 +187,14 @@ xray_public_host: node.example.com
 xray_under_caddy_public_host: xray-under-caddy.example.com
 ```
 
+If `proxy_control_plane_node_enabled` is omitted, Ansible leaves the field out
+of `/admin/nodes/sync` so the control plane can preserve the existing enabled
+state. Set it explicitly when you want inventory to manage node availability.
+
 Runtime API management is also optional and disabled by default. When enabled,
-Xray Reality and Xray under Caddy keep their existing static users, but expose a gRPC
-management API only on the configured WireGuard address. Both roles use port
+Xray Reality and Xray under Caddy expose a gRPC management API only on the
+configured WireGuard address. Static clients default to an empty list; managed
+users are added by `proxy-control-plane` through the runtime API. Both roles use port
 `10085` by default; each node binds that port on its own WireGuard IP. The API
 enables both `HandlerService` for user reconciliation and `StatsService` for
 traffic collection. The roles also render `stats: {}` plus user uplink/downlink
@@ -180,21 +215,23 @@ different WireGuard IPs. Ansible registers these API fields with the control
 plane; user add/remove reconciliation is still owned by `proxy-control-plane`.
 
 Subscription publishing can also be delegated to the control plane. Caddy can
-proxy public subscription paths to `proxy-control-plane` while leaving the
+proxy the real control-plane subscription path, `/sub/{token}`, while leaving
 existing static files in `/opt/caddy/site` untouched as a compatibility backup.
-The long-term source of truth is still PostgreSQL; Caddy only forwards requests.
+The long-term source of truth is still PostgreSQL; Caddy only forwards managed
+subscription-token requests.
 
 ```yaml
 proxy_control_plane_subscription_proxy_enabled: true
 proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
 proxy_control_plane_subscription_public_path: /sub
-proxy_control_plane_subscription_legacy_paths:
-  - /legacy-public.txt
 ```
 
-The legacy paths are rewritten to `/legacy-sub{uri}` before proxying. Import the
-old public file into the control plane first, then keep the static file in place
-until client migration is complete.
+Import old public files into the control plane first, then keep the static files
+in place until client migration is complete. The current control-plane API only
+serves managed subscriptions through `/sub/{token}`; if you change
+`proxy_control_plane_subscription_public_path`, Caddy rewrites that public path
+back to `/sub/{token}` for the upstream. Legacy static paths should continue to
+be handled by Caddy's file server rather than proxied.
 
 ## Safety Notes
 

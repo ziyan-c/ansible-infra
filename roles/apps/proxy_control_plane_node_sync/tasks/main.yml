@@ -23,6 +23,20 @@
     fail_msg: "xray_reality_server_names and xray_reality_short_ids are required for node sync."
   when: groups.get('xray_nodes', []) | length > 0
 
+- name: 校验 Xray under Caddy 订阅域名
+  ansible.builtin.assert:
+    that:
+      - >-
+        (hostvars[item].xray_under_caddy_public_host
+         | default(xray_under_caddy_domain | default('')))
+        | length > 0
+    fail_msg: >-
+      xray_under_caddy_public_host or xray_under_caddy_domain is required
+      for each Xray under Caddy node sync payload.
+  loop: "{{ groups.get('xray_under_caddy_nodes', []) }}"
+  loop_control:
+    label: "{{ item }}"
+
 - name: 校验 Xray Reality 公钥已配置
   ansible.builtin.assert:
     that:
@@ -70,7 +84,7 @@
     proxy_control_plane_xray_under_caddy_runtime_api_port: >-
       {{ hostvars[item].proxy_control_plane_xray_under_caddy_runtime_api_port
          | default(proxy_control_plane_xray_under_caddy_runtime_api_port) }}
-    proxy_control_plane_xray_under_caddy_node:
+    proxy_control_plane_xray_under_caddy_node_base:
       name: >-
         {{ hostvars[item].proxy_control_plane_node_name
            | default('xray-under-caddy-' ~ item)
@@ -89,7 +103,13 @@
       runtime_api_host: "{{ proxy_control_plane_xray_under_caddy_runtime_api_host }}"
       runtime_api_port: "{{ proxy_control_plane_xray_under_caddy_runtime_api_port | int }}"
       runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
-      enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
+    proxy_control_plane_xray_under_caddy_node: >-
+      {{
+        proxy_control_plane_xray_under_caddy_node_base
+        | combine({'enabled': (hostvars[item].proxy_control_plane_node_enabled | bool)})
+        if hostvars[item].proxy_control_plane_node_enabled is defined
+        else proxy_control_plane_xray_under_caddy_node_base
+      }}
   loop: "{{ groups.get('xray_under_caddy_nodes', []) }}"
   loop_control:
     label: "{{ item }}"
@@ -109,7 +129,7 @@
     proxy_control_plane_xray_runtime_api_port: >-
       {{ hostvars[item].proxy_control_plane_xray_runtime_api_port
          | default(proxy_control_plane_xray_runtime_api_port) }}
-    proxy_control_plane_xray_node:
+    proxy_control_plane_xray_node_base:
       name: >-
         {{ hostvars[item].proxy_control_plane_node_name
            | default('xray-' ~ item)
@@ -130,7 +150,13 @@
       runtime_api_host: "{{ proxy_control_plane_xray_runtime_api_host }}"
       runtime_api_port: "{{ proxy_control_plane_xray_runtime_api_port | int }}"
       runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
-      enabled: "{{ hostvars[item].proxy_control_plane_node_enabled | default(true) | bool }}"
+    proxy_control_plane_xray_node: >-
+      {{
+        proxy_control_plane_xray_node_base
+        | combine({'enabled': (hostvars[item].proxy_control_plane_node_enabled | bool)})
+        if hostvars[item].proxy_control_plane_node_enabled is defined
+        else proxy_control_plane_xray_node_base
+      }}
   loop: "{{ groups.get('xray_nodes', []) }}"
   loop_control:
     label: "{{ item }}"

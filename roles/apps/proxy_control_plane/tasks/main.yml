@@ -1,0 +1,62 @@
+---
+- name: 校验 Proxy Control Plane 部署配置
+  ansible.builtin.assert:
+    that:
+      - proxy_control_plane_image | length > 0
+      - proxy_control_plane_database_url | length > 0
+      - proxy_control_plane_admin_email | length > 0
+      - proxy_control_plane_admin_password | length >= 12
+      - proxy_control_plane_secret_key | length >= 32
+      - proxy_control_plane_database_encryption_key | length > 0
+    fail_msg: >-
+      Set proxy_control_plane_image, proxy_control_plane_database_url,
+      proxy_control_plane_admin_email, proxy_control_plane_admin_password,
+      proxy_control_plane_secret_key, and proxy_control_plane_database_encryption_key.
+  no_log: true
+
+- name: 登录 GitHub Container Registry
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ proxy_control_plane_ghcr_username }}"
+    password: "{{ proxy_control_plane_ghcr_token }}"
+  no_log: true
+  when:
+    - proxy_control_plane_ghcr_username | length > 0
+    - proxy_control_plane_ghcr_token | length > 0
+
+- name: 创建 Proxy Control Plane 工作目录
+  ansible.builtin.file:
+    path: "{{ proxy_control_plane_project_dir }}"
+    state: directory
+    owner: "{{ proxy_control_plane_owner }}"
+    group: "{{ proxy_control_plane_group }}"
+    mode: "0700"
+
+- name: 下发 Proxy Control Plane Docker Compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ proxy_control_plane_project_dir }}/docker-compose.yml"
+    owner: "{{ proxy_control_plane_owner }}"
+    group: "{{ proxy_control_plane_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart Proxy Control Plane
+
+- name: 执行 Proxy Control Plane 数据库迁移
+  ansible.builtin.command:
+    cmd: >-
+      docker compose run --pull always --rm api
+      /app/proxy-control-plane db migrate --no-local-config
+    chdir: "{{ proxy_control_plane_project_dir }}"
+  register: proxy_control_plane_migrate_result
+  changed_when: "'applied SQL migration' in (proxy_control_plane_migrate_result.stdout ~ proxy_control_plane_migrate_result.stderr)"
+  when:
+    - proxy_control_plane_manage_runtime | bool
+    - proxy_control_plane_run_migrations | bool
+
+- name: 启动 Proxy Control Plane 容器
+  community.docker.docker_compose_v2:
+    project_src: "{{ proxy_control_plane_project_dir }}"
+    state: present
+    pull: always
+  when: proxy_control_plane_manage_runtime | bool

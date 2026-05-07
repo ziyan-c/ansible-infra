@@ -32,7 +32,19 @@ caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
 proxy_control_plane_subscription_proxy_enabled: false
 proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
 proxy_control_plane_subscription_public_path: /sub
-proxy_control_plane_subscription_legacy_paths: []
+
+proxy_control_plane_enabled: false
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
+proxy_control_plane_bind_host: "127.0.0.1"
+proxy_control_plane_host_port: 9710
+proxy_control_plane_database_url: "postgres://proxy_control_app:REPLACE_ME_PROXY_CONTROL_PLANE_DB_PASSWORD@10.66.0.2:5432/proxy_control?sslmode=require"
+proxy_control_plane_secret_key: "REPLACE_ME_PROXY_CONTROL_PLANE_SECRET_KEY_32_CHARS_MIN"
+proxy_control_plane_database_encryption_key: "REPLACE_ME_BASE64_32_BYTE_DATABASE_ENCRYPTION_KEY"
+proxy_control_plane_runtime_sync_enabled: true
+proxy_control_plane_runtime_sync_interval: 5m
+proxy_control_plane_traffic_sync_enabled: true
+proxy_control_plane_traffic_sync_interval: 10m
+proxy_control_plane_maintenance_cleanup_enabled: true
 
 backup_keep_local: 7
 backup_keep_remote: 14
@@ -106,9 +118,9 @@ pg_custom_dir: /opt/postgres/custom_data
 
 mailcow_version: "REPLACE_WITH_MAILCOW_GIT_TAG"
 
-xray_under_caddy_client_id: "00000000-0000-0000-0000-000000000000"
+xray_under_caddy_static_clients: []
 
-xray_client_id: "00000000-0000-0000-0000-000000000000"
+xray_static_clients: []
 xray_reality_dest: "www.example.com:443"
 xray_reality_server_names:
   - www.example.com

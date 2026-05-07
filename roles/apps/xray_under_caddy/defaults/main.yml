@@ -4,7 +4,7 @@ xray_under_caddy_project_dir: /opt/xray-under-caddy
 xray_under_caddy_owner: root
 xray_under_caddy_group: root
 xray_under_caddy_manage_runtime: true
-xray_under_caddy_client_id: "00000000-0000-0000-0000-000000000000"
+xray_under_caddy_static_clients: []
 xray_under_caddy_internal_port: 10010
 xray_under_caddy_ws_path: /v2ray
 proxy_control_plane_runtime_api_enabled: false

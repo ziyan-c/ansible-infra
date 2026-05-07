@@ -15,6 +15,10 @@ all:
       hosts:
         localhost:
 
+    proxy_control_plane_nodes:
+      hosts:
+        vps-b.example.com:
+
     init_nodes:
       hosts:
         vps-a.example.com:
