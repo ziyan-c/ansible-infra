@@ -81,7 +81,7 @@
     proxy_control_plane_xray_under_caddy_runtime_api_host: >-
       {{ hostvars[item].proxy_control_plane_runtime_api_host
          | default(proxy_control_plane_runtime_api_host | default('')) }}
-    proxy_control_plane_xray_under_caddy_runtime_api_port: >-
+    proxy_control_plane_xray_under_caddy_effective_runtime_api_port: >-
       {{ hostvars[item].proxy_control_plane_xray_under_caddy_runtime_api_port
          | default(proxy_control_plane_xray_under_caddy_runtime_api_port) }}
     proxy_control_plane_xray_under_caddy_node_base:
@@ -101,7 +101,7 @@
       host_header: "{{ proxy_control_plane_xray_under_caddy_public_host }}"
       runtime_api_enabled: "{{ proxy_control_plane_runtime_api_enabled | default(false) | bool }}"
       runtime_api_host: "{{ proxy_control_plane_xray_under_caddy_runtime_api_host }}"
-      runtime_api_port: "{{ proxy_control_plane_xray_under_caddy_runtime_api_port | int }}"
+      runtime_api_port: "{{ proxy_control_plane_xray_under_caddy_effective_runtime_api_port | int }}"
       runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
     proxy_control_plane_xray_under_caddy_node: >-
       {{
@@ -126,7 +126,7 @@
     proxy_control_plane_xray_runtime_api_host: >-
       {{ hostvars[item].proxy_control_plane_runtime_api_host
          | default(proxy_control_plane_runtime_api_host | default('')) }}
-    proxy_control_plane_xray_runtime_api_port: >-
+    proxy_control_plane_xray_effective_runtime_api_port: >-
       {{ hostvars[item].proxy_control_plane_xray_runtime_api_port
          | default(proxy_control_plane_xray_runtime_api_port) }}
     proxy_control_plane_xray_node_base:
@@ -148,7 +148,7 @@
       reality_short_id: "{{ xray_reality_short_ids | first }}"
       runtime_api_enabled: "{{ proxy_control_plane_runtime_api_enabled | default(false) | bool }}"
       runtime_api_host: "{{ proxy_control_plane_xray_runtime_api_host }}"
-      runtime_api_port: "{{ proxy_control_plane_xray_runtime_api_port | int }}"
+      runtime_api_port: "{{ proxy_control_plane_xray_effective_runtime_api_port | int }}"
       runtime_inbound_tag: "{{ hostvars[item].proxy_control_plane_runtime_inbound_tag | default(proxy_control_plane_runtime_inbound_tag) }}"
     proxy_control_plane_xray_node: >-
       {{
