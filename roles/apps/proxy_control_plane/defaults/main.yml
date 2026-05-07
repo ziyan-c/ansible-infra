@@ -10,16 +10,8 @@ proxy_control_plane_bind_host: "127.0.0.1"
 proxy_control_plane_host_port: 9710
 proxy_control_plane_container_port: 9710
 proxy_control_plane_listen_addr: "0.0.0.0:9710"
-proxy_control_plane_environment: production
-
-proxy_control_plane_database_url: ""
-proxy_control_plane_admin_email: ""
-proxy_control_plane_admin_password: ""
-proxy_control_plane_secret_key: ""
-proxy_control_plane_database_encryption_key: ""
-proxy_control_plane_access_token_expire_minutes: 60
-proxy_control_plane_auto_create_database: true
-proxy_control_plane_auto_migrate: false
+proxy_control_plane_env_file_src: ""
+proxy_control_plane_env_file_dest: "{{ proxy_control_plane_project_dir }}/app.env"
 proxy_control_plane_run_migrations: true
 
 proxy_control_plane_runtime_sync_enabled: true

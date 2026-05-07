@@ -5,18 +5,10 @@ services:
     image: "{{ proxy_control_plane_image }}"
     container_name: "{{ proxy_control_plane_container_name }}"
     restart: unless-stopped
+    env_file:
+      - ./app.env
     environment:
-      PCP_APP_NAME: proxy-control-plane
-      PCP_ENVIRONMENT: "{{ proxy_control_plane_environment }}"
       PCP_LISTEN_ADDR: "{{ proxy_control_plane_listen_addr }}"
-      PCP_DATABASE_URL: "{{ proxy_control_plane_database_url }}"
-      PCP_ADMIN_EMAIL: "{{ proxy_control_plane_admin_email }}"
-      PCP_ADMIN_PASSWORD: "{{ proxy_control_plane_admin_password }}"
-      PCP_SECRET_KEY: "{{ proxy_control_plane_secret_key }}"
-      PCP_DATABASE_ENCRYPTION_KEY: "{{ proxy_control_plane_database_encryption_key }}"
-      PCP_ACCESS_TOKEN_EXPIRE_MINUTES: "{{ proxy_control_plane_access_token_expire_minutes | int }}"
-      PCP_AUTO_CREATE_DATABASE: "{{ proxy_control_plane_auto_create_database | bool | ternary('true', 'false') }}"
-      PCP_AUTO_MIGRATE: "{{ proxy_control_plane_auto_migrate | bool | ternary('true', 'false') }}"
       PCP_RUNTIME_SYNC_ENABLED: "{{ proxy_control_plane_runtime_sync_enabled | bool | ternary('true', 'false') }}"
       PCP_RUNTIME_SYNC_INTERVAL: "{{ proxy_control_plane_runtime_sync_interval }}"
       PCP_RUNTIME_SYNC_TIMEOUT: "{{ proxy_control_plane_runtime_sync_timeout }}"

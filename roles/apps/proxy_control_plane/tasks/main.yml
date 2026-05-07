@@ -3,15 +3,9 @@
   ansible.builtin.assert:
     that:
       - proxy_control_plane_image | length > 0
-      - proxy_control_plane_database_url | length > 0
-      - proxy_control_plane_admin_email | length > 0
-      - proxy_control_plane_admin_password | length >= 12
-      - proxy_control_plane_secret_key | length >= 32
-      - proxy_control_plane_database_encryption_key | length > 0
+      - proxy_control_plane_env_file_src | length > 0
     fail_msg: >-
-      Set proxy_control_plane_image, proxy_control_plane_database_url,
-      proxy_control_plane_admin_email, proxy_control_plane_admin_password,
-      proxy_control_plane_secret_key, and proxy_control_plane_database_encryption_key.
+      Set proxy_control_plane_image and proxy_control_plane_env_file_src.
   no_log: true
 
 - name: 登录 GitHub Container Registry
@@ -32,14 +26,23 @@
     group: "{{ proxy_control_plane_group }}"
     mode: "0700"
 
+- name: 复制 Proxy Control Plane 环境变量文件
+  ansible.builtin.copy:
+    src: "{{ proxy_control_plane_env_file_src }}"
+    dest: "{{ proxy_control_plane_env_file_dest }}"
+    owner: "{{ proxy_control_plane_owner }}"
+    group: "{{ proxy_control_plane_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart Proxy Control Plane
+
 - name: 下发 Proxy Control Plane Docker Compose 文件
   ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: "{{ proxy_control_plane_project_dir }}/docker-compose.yml"
     owner: "{{ proxy_control_plane_owner }}"
     group: "{{ proxy_control_plane_group }}"
-    mode: "0600"
-  no_log: true
+    mode: "0644"
   notify: Restart Proxy Control Plane
 
 - name: 拉取 Proxy Control Plane 镜像

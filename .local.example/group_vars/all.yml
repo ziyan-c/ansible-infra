@@ -37,9 +37,7 @@ proxy_control_plane_enabled: false
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
 proxy_control_plane_bind_host: "127.0.0.1"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_database_url: "postgres://proxy_control_app:REPLACE_ME_PROXY_CONTROL_PLANE_DB_PASSWORD@10.66.0.2:5432/proxy_control?sslmode=require"
-proxy_control_plane_secret_key: "REPLACE_ME_PROXY_CONTROL_PLANE_SECRET_KEY_32_CHARS_MIN"
-proxy_control_plane_database_encryption_key: "REPLACE_ME_BASE64_32_BYTE_DATABASE_ENCRYPTION_KEY"
+proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
 proxy_control_plane_runtime_sync_enabled: true
 proxy_control_plane_runtime_sync_interval: 5m
 proxy_control_plane_traffic_sync_enabled: true

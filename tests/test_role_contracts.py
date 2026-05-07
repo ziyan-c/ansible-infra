@@ -191,12 +191,15 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "docker compose run --rm api" in tasks
     assert "db migrate --no-local-config" in tasks
     assert "pull: always" in tasks
+    assert "proxy_control_plane_env_file_src" in defaults
+    assert "复制 Proxy Control Plane 环境变量文件" in tasks
     assert "no_log: true" in tasks
-    assert "env_file:" not in compose
-    assert "PCP_DATABASE_URL" in compose
-    assert "PCP_ADMIN_PASSWORD" in compose
-    assert "PCP_SECRET_KEY" in compose
-    assert "PCP_DATABASE_ENCRYPTION_KEY" in compose
+    assert "env_file:" in compose
+    assert "./app.env" in compose
+    assert "PCP_DATABASE_URL" not in compose
+    assert "PCP_ADMIN_PASSWORD" not in compose
+    assert "PCP_SECRET_KEY" not in compose
+    assert "PCP_DATABASE_ENCRYPTION_KEY" not in compose
     assert "PCP_LISTEN_ADDR" in compose
     assert "PCP_RUNTIME_SYNC_ENABLED" in compose
     assert "proxy_control_plane_enabled: false" in example_vars

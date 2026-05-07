@@ -106,6 +106,7 @@ if command -v docker >/dev/null 2>&1; then
 	mkdir -p "$render_dir/compose/app"
 	printf 'FROM scratch\n' >"$render_dir/compose/app/Dockerfile"
 	touch "$render_dir/compose/.env"
+	touch "$render_dir/compose/app.env"
 
 	while IFS= read -r compose_file; do
 		docker compose -f "$compose_file" config >/dev/null

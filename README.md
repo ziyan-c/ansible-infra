@@ -136,19 +136,15 @@ proxy_control_plane_enabled: true
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_database_url: "postgres://user:password@db.example.com:5432/proxy_control?sslmode=require"
-proxy_control_plane_admin_email: "admin@example.com"
-proxy_control_plane_admin_password: "..."
-proxy_control_plane_secret_key: "..."
-proxy_control_plane_database_encryption_key: "..."
+proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
 ```
 
-The role renders these values directly into Docker Compose `environment:`
-entries. The generated compose file is written as `0600` and task output is
-hidden with `no_log: true` because it contains secrets. If you already keep the
-app's private `.local/app.env`, you can still reuse it by loading individual
-keys into Ansible variables with `lookup('ansible.builtin.ini', ...)`; the
-remote container does not need a separate `app.env` file.
+The role copies the private env file to
+`/opt/proxy-control-plane/app.env` with `0600` permissions, and Docker Compose
+loads it through `env_file`. Compose still injects non-secret runtime overrides
+such as the listen address, runtime sync interval, traffic sync interval, and
+maintenance retention, so deployment policy stays in Ansible while credentials
+stay isolated in the env file.
 
 Private GHCR images can be pulled by setting `proxy_control_plane_ghcr_username`
 and `proxy_control_plane_ghcr_token`. Public GHCR images do not need a login.
