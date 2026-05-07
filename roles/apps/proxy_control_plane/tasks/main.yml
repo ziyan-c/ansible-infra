@@ -42,10 +42,19 @@
   no_log: true
   notify: Restart Proxy Control Plane
 
+- name: 拉取 Proxy Control Plane 镜像
+  ansible.builtin.command:
+    cmd: docker compose pull api
+    chdir: "{{ proxy_control_plane_project_dir }}"
+  register: proxy_control_plane_pull_result
+  changed_when: "'Downloaded newer image' in (proxy_control_plane_pull_result.stdout ~ proxy_control_plane_pull_result.stderr)"
+  when:
+    - proxy_control_plane_manage_runtime | bool
+
 - name: 执行 Proxy Control Plane 数据库迁移
   ansible.builtin.command:
     cmd: >-
-      docker compose run --pull always --rm api
+      docker compose run --rm api
       /app/proxy-control-plane db migrate --no-local-config
     chdir: "{{ proxy_control_plane_project_dir }}"
   register: proxy_control_plane_migrate_result

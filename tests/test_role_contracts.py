@@ -187,7 +187,8 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "proxy_control_plane_nodes" in inventory
     assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.0"' in defaults
     assert "proxy_control_plane_enabled: false" in defaults
-    assert "docker compose run --pull always --rm api" in tasks
+    assert "docker compose pull api" in tasks
+    assert "docker compose run --rm api" in tasks
     assert "db migrate --no-local-config" in tasks
     assert "pull: always" in tasks
     assert "no_log: true" in tasks
