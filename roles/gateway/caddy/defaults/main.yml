@@ -3,4 +3,4 @@ caddy_image: "caddy:2.11.2"
 enable_neo_backend_routes: false
 proxy_control_plane_subscription_proxy_enabled: false
 proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
-proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_public_path: /xray/sub

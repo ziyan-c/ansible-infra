@@ -219,23 +219,24 @@ different WireGuard IPs. Ansible registers these API fields with the control
 plane; user add/remove reconciliation is still owned by `proxy-control-plane`.
 
 Subscription publishing can also be delegated to the control plane. Caddy proxies
-the real control-plane subscription path, `/sub/{token}`, only on the main
+the public subscription path, `/xray/sub/{token}`, only on the main
 `base_domain` site, while the Xray under Caddy domain stays focused on proxy
 traffic and static fallback files. The long-term source of truth is still
-PostgreSQL; Caddy only forwards managed subscription-token requests.
+PostgreSQL; Caddy rewrites the public path back to the control-plane upstream
+path `/sub/{token}` and only forwards managed subscription-token requests.
 
 ```yaml
 proxy_control_plane_subscription_proxy_enabled: true
 proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
-proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_public_path: /xray/sub
 ```
 
 Import old public files into the control plane first, then keep the static files
 in place until client migration is complete. The current control-plane API only
-serves managed subscriptions through `/sub/{token}`; if you change
-`proxy_control_plane_subscription_public_path`, Caddy rewrites that public path
-back to `/sub/{token}` for the upstream. Legacy static paths should continue to
-be handled by Caddy's file server rather than proxied.
+serves managed subscriptions through `/sub/{token}`; Caddy exposes the public
+`/xray/sub/{token}` path and rewrites it back to `/sub/{token}` for the
+upstream. Legacy static paths should continue to be handled by Caddy's file
+server rather than proxied.
 
 ## Safety Notes
 

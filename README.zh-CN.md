@@ -221,20 +221,21 @@ proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
 `proxy_control_plane_runtime_api_host`。Ansible 会把这些 runtime API 字段登记到
 control plane；用户增删 reconciliation 仍然由 `proxy-control-plane` 自己负责。
 
-订阅发布也可以交给 control plane。Caddy 只在主 `base_domain` 站点上代理真实的
-control-plane 订阅路径 `/sub/{token}`；Xray under Caddy 域名只负责代理流量和
-静态文件兜底。长期事实来源仍然是 PostgreSQL，Caddy 只转发托管订阅 token 请求。
+订阅发布也可以交给 control plane。Caddy 只在主 `base_domain` 站点上代理公开
+订阅路径 `/xray/sub/{token}`；Xray under Caddy 域名只负责代理流量和静态文件兜底。
+长期事实来源仍然是 PostgreSQL，Caddy 会把公开路径重写回 control-plane 上游真实
+路径 `/sub/{token}`，只转发托管订阅 token 请求。
 
 ```yaml
 proxy_control_plane_subscription_proxy_enabled: true
 proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
-proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_public_path: /xray/sub
 ```
 
 旧公开订阅文件应先导入 control plane，然后在客户端迁移完成前继续作为静态文件
-保留。当前 control-plane API 只服务 `/sub/{token}` 形式的托管订阅；如果修改
-`proxy_control_plane_subscription_public_path`，Caddy 会把公开路径重写回上游
-`/sub/{token}`。旧静态路径应该继续由 Caddy 的 file server 处理，不要代理。
+保留。当前 control-plane API 只服务 `/sub/{token}` 形式的托管订阅；Caddy 对外
+暴露 `/xray/sub/{token}`，再重写回上游 `/sub/{token}`。旧静态路径应该继续由
+Caddy 的 file server 处理，不要代理。
 
 ## 安全说明
 

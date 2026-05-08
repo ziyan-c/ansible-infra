@@ -69,12 +69,12 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "xray-under-caddy.example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
-assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle_path /sub/*"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle_path /xray/sub/*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "rewrite * /sub{uri}"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.10:9710"
-sub_route_count="$(grep -F -c "handle_path /sub/*" "$render_dir/caddy/vps-a.Caddyfile")"
+sub_route_count="$(grep -F -c "handle_path /xray/sub/*" "$render_dir/caddy/vps-a.Caddyfile")"
 if [[ "$sub_route_count" != "1" ]]; then
-	echo "expected exactly one /sub route on the main domain, got $sub_route_count" >&2
+	echo "expected exactly one /xray/sub route on the main domain, got $sub_route_count" >&2
 	exit 1
 fi
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'

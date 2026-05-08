@@ -32,7 +32,7 @@ cf_tunnel_token: "REPLACE_ME_CLOUDFLARE_TUNNEL_TOKEN"
 caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
 proxy_control_plane_subscription_proxy_enabled: false
 proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
-proxy_control_plane_subscription_public_path: /sub
+proxy_control_plane_subscription_public_path: /xray/sub
 
 proxy_control_plane_enabled: false
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"

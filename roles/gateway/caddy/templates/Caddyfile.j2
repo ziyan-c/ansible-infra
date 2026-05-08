@@ -1,6 +1,6 @@
 {% macro proxy_control_plane_subscription_routes() %}
 {% if proxy_control_plane_subscription_proxy_enabled | default(false) | bool %}
-    handle_path {{ proxy_control_plane_subscription_public_path | default('/sub') }}/* {
+    handle_path {{ proxy_control_plane_subscription_public_path | default('/xray/sub') }}/* {
         rewrite * /sub{uri}
         reverse_proxy {{ proxy_control_plane_subscription_proxy_upstream | default(proxy_control_plane_api_url | default('http://127.0.0.1:9710')) }} {
             header_up X-Real-IP {remote_host}
