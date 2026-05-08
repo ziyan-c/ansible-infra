@@ -1,5 +1,7 @@
 # Ansible Infra
 
+[简体中文](README.zh-CN.md)
+
 Personal Ansible playbooks for bootstrapping VPS nodes, building a WireGuard
 mesh, deploying gateway services, and running app stacks such as Caddy,
 Postgres, Mailcow, Zammad, Xray, and Cloudflared.
