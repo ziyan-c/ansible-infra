@@ -28,16 +28,17 @@ certbot_email: admin@example.com
 certbot_source_dir: /etc/letsencrypt/live/example.com/
 certbot_dest_dir: /opt/shared-certs/example.com
 cf_api_token: "REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
+cf_tunnel_token: "REPLACE_ME_CLOUDFLARE_TUNNEL_TOKEN"
 caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
 proxy_control_plane_subscription_proxy_enabled: false
 proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
 proxy_control_plane_subscription_public_path: /sub
 
 proxy_control_plane_enabled: false
-proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "127.0.0.1"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
+proxy_control_plane_env_file_src: "{{ playbook_dir }}/.local/role_vars/proxy_control_plane/app.env"
 
 backup_keep_local: 7
 backup_keep_remote: 14

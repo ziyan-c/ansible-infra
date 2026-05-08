@@ -86,8 +86,8 @@ release job first runs `make test`, then publishes a source archive generated
 from the tagged tree plus `SHA256SUMS`.
 
 ```bash
-git tag -a v0.1.1 -m "v0.1.1"
-git push origin v0.1.1
+git tag -a v0.2 -m "v0.2"
+git push origin v0.2
 ```
 
 Tags containing `-alpha`, `-beta`, `-rc`, or `-pre` are marked as pre-releases.
@@ -133,18 +133,19 @@ Example private variables:
 
 ```yaml
 proxy_control_plane_enabled: true
-proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "/path/to/proxy-control-plane/.local/app.env"
+proxy_control_plane_env_file_src: "{{ playbook_dir }}/.local/role_vars/proxy_control_plane/app.env"
 ```
 
-The role copies the private env file to
+Create `.local/role_vars/proxy_control_plane/app.env` as a symlink to the real
+`../proxy-control-plane/.local/app.env` file. The role copies that private env file to
 `/opt/proxy-control-plane/app.env` with `0600` permissions, and Docker Compose
 loads it through `env_file`. Put every `PCP_*` runtime setting in that env file,
 including `PCP_LISTEN_ADDR=0.0.0.0:9710`, runtime sync, traffic sync, and
-maintenance retention. Compose only describes the image, restart policy, env
-file, and host port binding.
+maintenance retention. Do not symlink or copy the whole `proxy-control-plane`
+`.local/` directory into Ansible; Compose only needs the single env file.
 
 Private GHCR images can be pulled by setting `proxy_control_plane_ghcr_username`
 and `proxy_control_plane_ghcr_token`. Public GHCR images do not need a login.
@@ -156,6 +157,11 @@ This repo can register deployed Xray nodes back into the Go
 and disabled by default. When enabled, Ansible collects hosts from
 `xray_under_caddy_nodes` and `xray_nodes`, builds the client-facing node payload, and
 calls `POST /admin/nodes/sync`. It does not write PostgreSQL directly.
+
+Run this play from a host that can reach the control-plane API over WireGuard.
+In the example inventory, `proxy_control_plane_sync_nodes` is the same host as
+`proxy_control_plane_nodes`, so sync does not depend on the local laptop being
+connected to the private mesh.
 
 Required private variables in `.local/group_vars/all.yml`:
 
@@ -210,11 +216,11 @@ Set `proxy_control_plane_runtime_api_host` per host when different nodes have
 different WireGuard IPs. Ansible registers these API fields with the control
 plane; user add/remove reconciliation is still owned by `proxy-control-plane`.
 
-Subscription publishing can also be delegated to the control plane. Caddy can
-proxy the real control-plane subscription path, `/sub/{token}`, while leaving
-existing static files in `/opt/caddy/site` untouched as a compatibility backup.
-The long-term source of truth is still PostgreSQL; Caddy only forwards managed
-subscription-token requests.
+Subscription publishing can also be delegated to the control plane. Caddy proxies
+the real control-plane subscription path, `/sub/{token}`, only on the main
+`base_domain` site, while the Xray under Caddy domain stays focused on proxy
+traffic and static fallback files. The long-term source of truth is still
+PostgreSQL; Caddy only forwards managed subscription-token requests.
 
 ```yaml
 proxy_control_plane_subscription_proxy_enabled: true

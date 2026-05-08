@@ -72,10 +72,15 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle_path /sub/*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "rewrite * /sub{uri}"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.10:9710"
+sub_route_count="$(grep -F -c "handle_path /sub/*" "$render_dir/caddy/vps-a.Caddyfile")"
+if [[ "$sub_route_count" != "1" ]]; then
+	echo "expected exactly one /sub route on the main domain, got $sub_route_count" >&2
+	exit 1
+fi
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'
 assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \
-	"ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
+	"ghcr.io/ziyan-c/proxy-control-plane:0.2"
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \
 	'"127.0.0.1:9710:9710"'
 assert_contains "$render_dir/caddy/vps-b.Caddyfile" "support.example.com {"

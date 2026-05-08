@@ -185,7 +185,7 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "apps/proxy_control_plane" in site
     assert "proxy_control_plane_nodes" in site
     assert "proxy_control_plane_nodes" in inventory
-    assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"' in defaults
+    assert 'proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"' in defaults
     assert "proxy_control_plane_enabled: false" in defaults
     assert "docker compose pull api" in tasks
     assert "docker compose run --rm api" in tasks
@@ -239,6 +239,7 @@ def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
     assert "proxy_control_plane_subscription_proxy_enabled: false" in caddy_defaults
     assert "proxy_control_plane_subscription_proxy_enabled: false" in example_vars
     assert "proxy_control_plane_subscription_proxy_upstream" in caddy_template
+    assert caddy_template.count("{{ proxy_control_plane_subscription_routes() }}") == 1
     assert "handle_path {{ proxy_control_plane_subscription_public_path" in caddy_template
     assert "rewrite * /sub{uri}" in caddy_template
     assert "legacy-sub" not in caddy_template

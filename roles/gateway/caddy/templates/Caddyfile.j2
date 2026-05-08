@@ -56,8 +56,6 @@
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
     root * /usr/share/caddy
 
-{{ proxy_control_plane_subscription_routes() }}
-
     handle {{ xray_under_caddy_ws_path | default('/v2ray') }} {
         reverse_proxy xray-under-caddy:10010 {
             header_up X-Real-IP {header.CF-Connecting-IP}

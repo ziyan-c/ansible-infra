@@ -117,6 +117,14 @@ def test_deploy_nodes_match_their_service_groups(inventory_context):
     assert mismatches == {}
 
 
+def test_proxy_control_plane_sync_runs_from_control_plane_node(inventory_context):
+    sync_hosts = inventory_context["groups"]["proxy_control_plane_sync_nodes"]
+    control_plane_hosts = inventory_context["groups"]["proxy_control_plane_nodes"]
+
+    assert sync_hosts <= control_plane_hosts
+    assert "localhost" not in sync_hosts
+
+
 def test_wireguard_servers_match_inventory_and_vpn_group(inventory_context):
     wg_servers = inventory_context["all_vars"]["wg_servers"]
     vpn_hosts = inventory_context["groups"]["vpn_mesh_nodes"]

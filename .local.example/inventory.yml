@@ -13,7 +13,7 @@ all:
   children:
     proxy_control_plane_sync_nodes:
       hosts:
-        localhost:
+        vps-b.example.com:
 
     proxy_control_plane_nodes:
       hosts:

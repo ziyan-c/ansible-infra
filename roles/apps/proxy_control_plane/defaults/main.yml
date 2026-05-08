@@ -1,6 +1,6 @@
 ---
 proxy_control_plane_enabled: false
-proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.1.1"
+proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_project_dir: /opt/proxy-control-plane
 proxy_control_plane_owner: root
 proxy_control_plane_group: root
