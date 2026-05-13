@@ -41,6 +41,26 @@ def test_rclone_config_update_requires_explicit_force_flag():
     assert 'force: "{{ rclone_config_force_update | bool }}"' in tasks
 
 
+def test_wireguard_supports_single_hub_spoke_nodes():
+    tasks = read_role_file("roles/base/vpn_wireguard/tasks/main.yml")
+    server_template = read_role_file("roles/base/vpn_wireguard/templates/wg0.conf.j2")
+    spoke_template = read_role_file("roles/base/vpn_wireguard/templates/spoke_config.conf.j2")
+    example_vars = read_role_file(".local.example/group_vars/all.yml")
+
+    assert "wg_spoke_nodes" in tasks
+    assert "item.value.hub in wg_servers" in tasks
+    assert "spoke_config.conf.j2" in tasks
+    assert "wg-spokes" in tasks
+    assert "wg_spoke_nodes | default({})" in server_template
+    assert "peer_allowed_ips.values" in server_template
+    assert "# Spoke: {{ name }} via this hub" in server_template
+    assert "Endpoint = {{ hub.endpoint }}:{{ wg_port }}" in spoke_template
+    assert "AllowedIPs = {{ item.value.allowed_ips | default(wg_network_cidr) }}" in spoke_template
+    assert "wg_spoke_nodes:" in example_vars
+    assert "homelab:" in example_vars
+    assert "spoke_pairs:" in example_vars
+
+
 def test_zammad_storage_status_uses_machine_readable_sentinels():
     tasks = read_role_file("roles/apps/zammad/tasks/main.yml")
 

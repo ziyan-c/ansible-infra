@@ -14,6 +14,8 @@
 {% set wg_psks = wg_preshared_keys | default({}) %}
 {% set wg_server_psks = wg_psks.server_pairs | default({}) %}
 {% set wg_client_psks = wg_psks.client_pairs | default({}) %}
+{% set wg_spoke_psks = wg_psks.spoke_pairs | default({}) %}
+{% set wg_spoke_nodes = wg_spoke_nodes | default({}) %}
 
 [Interface]
 # 本机分配的内网 IP
@@ -34,16 +36,47 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j A
 {% set pair_names = [my_name, name] | sort %}
 {% set psk_key = pair_names[0] ~ '__' ~ pair_names[1] %}
 {% set psk = wg_server_psks[psk_key] | default('') %}
+{% set peer_allowed_ips = namespace(values=[wg_network_prefix ~ '.' ~ peer.ip_suffix ~ '/32']) %}
+{% for spoke_name, spoke in wg_spoke_nodes.items() %}
+{% if spoke.hub == name %}
+{% set peer_allowed_ips.values = peer_allowed_ips.values + [wg_network_prefix ~ '.' ~ spoke.ip_suffix ~ '/32'] %}
+{% endif %}
+{% endfor %}
 [Peer]
 # Server: {{ peer.hostname }}
 PublicKey = {{ peer.pub }}
 {% if psk | length > 0 %}
 PresharedKey = {{ psk }}
 {% endif %}
+{% if peer.endpoint | default('') | length > 0 %}
 Endpoint = {{ peer.endpoint }}:{{ wg_port }}
+{% endif %}
 # 核心逻辑：服务器之间只允许内网 IP 互通，不互相代理外网流量
-AllowedIPs = {{ wg_network_prefix }}.{{ peer.ip_suffix }}/32  # <-- ✅ 改成这样
+AllowedIPs = {{ peer_allowed_ips.values | join(', ') }}  # <-- ✅ 改成这样
 PersistentKeepalive = 25
+{% endif %}
+{% endfor %}
+
+# ===============================================
+# Hub-Spoke 节点 (例如无公网 IP 的 Homelab)
+# ===============================================
+{% for name, spoke in wg_spoke_nodes.items() %}
+{% if spoke.hub == my_name %}
+{% set psk_key = name ~ '__' ~ my_name %}
+{% set psk = wg_spoke_psks[psk_key] | default('') %}
+[Peer]
+# Spoke: {{ name }} via this hub
+PublicKey = {{ spoke.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
+{% if spoke.endpoint | default('') | length > 0 %}
+Endpoint = {{ spoke.endpoint }}:{{ spoke.port | default(wg_port) }}
+{% endif %}
+AllowedIPs = {{ wg_network_prefix }}.{{ spoke.ip_suffix }}/32
+{% if (spoke.persistent_keepalive | default(25) | int) > 0 %}
+PersistentKeepalive = {{ spoke.persistent_keepalive | default(25) }}
+{% endif %}
 {% endif %}
 {% endfor %}
 

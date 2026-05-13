@@ -106,6 +106,37 @@ ansible-playbook site.yml --tags postgres
 ansible-playbook site.yml --tags zammad
 ```
 
+## WireGuard Homelab Spoke
+
+公网 VPS 节点继续保持 full mesh。没有稳定公网 IP、在 NAT 后面的机器，比如
+homelab，不要放进 `vpn_mesh_nodes`，而是放进 `wg_spoke_nodes`，并且只指定一个
+公网 VPS 作为 hub：
+
+```yaml
+wg_spoke_nodes:
+  homelab:
+    hub: fr
+    ip_suffix: 6
+    pub: "HOMELAB_PUBLIC_KEY"
+    priv: "HOMELAB_PRIVATE_KEY"
+    persistent_keepalive: 25
+
+wg_preshared_keys:
+  spoke_pairs:
+    homelab__fr: "HOMELAB_FR_PSK"
+```
+
+Ansible 会更新 VPS 端配置：非 hub 节点会把 `10.66.0.6/32` 路由到所选 hub，hub
+会直接接受 homelab 这个 peer，但不要求 homelab 有公网 `Endpoint`。同时会在本地
+生成手动接入配置：
+
+```text
+.local/wg-spokes/homelab/homelab_via_fr.conf
+```
+
+把这个配置放到 homelab 机器上启动 `wg-quick@wg0` 即可。默认只把 WireGuard
+内网 CIDR 走 hub，不把公网全流量代理过去。
+
 ## 私有状态备份
 
 创建或刷新 `.local` 的加密备份包：

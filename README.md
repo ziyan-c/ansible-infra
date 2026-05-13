@@ -110,6 +110,33 @@ ansible-playbook site.yml --tags postgres
 ansible-playbook site.yml --tags zammad
 ```
 
+## WireGuard Homelab Spokes
+
+VPS nodes remain a full mesh. NAT or roaming machines, such as a homelab box
+without a stable public IP, should be modeled as `wg_spoke_nodes` and assigned
+to exactly one public VPS hub:
+
+```yaml
+wg_spoke_nodes:
+  homelab:
+    hub: fr
+    ip_suffix: 6
+    pub: "HOMELAB_PUBLIC_KEY"
+    priv: "HOMELAB_PRIVATE_KEY"
+    persistent_keepalive: 25
+
+wg_preshared_keys:
+  spoke_pairs:
+    homelab__fr: "HOMELAB_FR_PSK"
+```
+
+Ansible updates the VPS configs so non-hub nodes route `10.66.0.6/32` through
+the selected hub, while the hub accepts the homelab peer without requiring a
+public `Endpoint`. It also writes the manual homelab config to
+`.local/wg-spokes/homelab/homelab_via_fr.conf`; copy that config onto the
+homelab machine and start `wg-quick@wg0` there. The spoke config routes only
+the WireGuard CIDR through the hub by default, not all public Internet traffic.
+
 ## Private State Backup
 
 Create or refresh the encrypted private-state bundle:

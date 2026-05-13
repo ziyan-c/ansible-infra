@@ -1,0 +1,26 @@
+[Interface]
+# Spoke Node: {{ item.key }}
+PrivateKey = {{ item.value.priv | default('请在此处手动替换为 homelab 私钥') }}
+Address = {{ wg_network_prefix }}.{{ item.value.ip_suffix }}/24
+{% if (item.value.listen_port | default(0) | int) > 0 %}
+ListenPort = {{ item.value.listen_port | int }}
+{% endif %}
+DNS = {{ wg_dns }}
+MTU = 1280
+
+{% set hub_name = item.value.hub %}
+{% set hub = wg_servers[hub_name] %}
+{% set wg_psks = wg_preshared_keys | default({}) %}
+{% set wg_spoke_psks = wg_psks.spoke_pairs | default({}) %}
+{% set psk_key = item.key ~ '__' ~ hub_name %}
+{% set psk = wg_spoke_psks[psk_key] | default('') %}
+[Peer]
+# Hub: {{ hub_name | upper }} ({{ hub.hostname }})
+PublicKey = {{ hub.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
+Endpoint = {{ hub.endpoint }}:{{ wg_port }}
+# 只把 WireGuard 内网发给 hub；不默认代理公网流量。
+AllowedIPs = {{ item.value.allowed_ips | default(wg_network_cidr) }}
+PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) }}

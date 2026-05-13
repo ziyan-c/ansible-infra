@@ -22,6 +22,20 @@
     state: directory
     mode: '0700'
 
+- name: 校验 WireGuard Hub-Spoke 节点配置
+  ansible.builtin.assert:
+    that:
+      - item.value.hub is defined
+      - item.value.hub in wg_servers
+      - item.value.ip_suffix is defined
+      - item.value.pub | default('') | length > 0
+      - wg_servers[item.value.hub].endpoint | default('') | length > 0
+    fail_msg: >-
+      Each wg_spoke_nodes entry must define hub, ip_suffix, pub, and the selected
+      hub must exist in wg_servers with a public endpoint.
+  no_log: true
+  loop: "{{ wg_spoke_nodes | default({}) | dict2items }}"
+
 - name: 动态生成 WireGuard 配置文件 (wg0.conf)
   template:
     src: wg0.conf.j2
@@ -81,6 +95,17 @@
   no_log: true
   loop: "{{ wg_clients | dict2items }}"
 
+- name: 创建本地 Hub-Spoke 节点配置存放目录
+  delegate_to: localhost
+  become: no
+  run_once: true
+  file:
+    path: "{{ playbook_dir }}/.local/wg-spokes/{{ item.key }}"
+    state: directory
+    mode: '0700'
+  no_log: true
+  loop: "{{ wg_spoke_nodes | default({}) | dict2items }}"
+
 - name: 为每个客户端生成对应所有服务器的配置文件 (.conf)
   delegate_to: localhost
   become: no
@@ -91,6 +116,17 @@
     mode: '0600'
   no_log: true
   loop: "{{ (wg_clients | dict2items) | product(wg_servers | dict2items) | list }}"
+
+- name: 为每个 Hub-Spoke 节点生成手动接入配置文件 (.conf)
+  delegate_to: localhost
+  become: no
+  run_once: true
+  template:
+    src: spoke_config.conf.j2
+    dest: "{{ playbook_dir }}/.local/wg-spokes/{{ item.key }}/{{ item.key }}_via_{{ item.value.hub }}.conf"
+    mode: '0600'
+  no_log: true
+  loop: "{{ wg_spoke_nodes | default({}) | dict2items }}"
 
 - name: 为移动端生成对应所有服务器的二维码 (.png)
   delegate_to: localhost

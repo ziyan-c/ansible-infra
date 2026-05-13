@@ -87,6 +87,17 @@ wg_clients:
     pub: "REPLACE_ME_CLIENT_PUBLIC_KEY"
     priv: "REPLACE_ME_CLIENT_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
 
+wg_spoke_nodes:
+  # Roaming node without a stable public endpoint. It is not managed by Ansible;
+  # Ansible only teaches the hub and the other VPS nodes how to route to it, and
+  # writes a local config under .local/wg-spokes/homelab/.
+  homelab:
+    hub: vps_b
+    ip_suffix: 6
+    pub: "REPLACE_ME_HOMELAB_PUBLIC_KEY"
+    priv: "REPLACE_ME_HOMELAB_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+    persistent_keepalive: 25
+
 wg_preshared_keys:
   # One independent PSK per WireGuard peer pair. Generate real values with:
   #   wg genpsk
@@ -95,6 +106,8 @@ wg_preshared_keys:
   client_pairs:
     phone__vps_a: "REPLACE_ME_WG_PSK_PHONE_VPS_A"
     phone__vps_b: "REPLACE_ME_WG_PSK_PHONE_VPS_B"
+  spoke_pairs:
+    homelab__vps_b: "REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
 
 rclone_config_content: |
   [gdrive]

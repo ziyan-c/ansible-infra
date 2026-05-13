@@ -149,17 +149,36 @@ def test_wireguard_ip_suffixes_are_unique(inventory_context):
         suffixes.append(server["ip_suffix"])
     for client in inventory_context["all_vars"]["wg_clients"].values():
         suffixes.append(client["ip_suffix"])
+    for spoke in inventory_context["all_vars"].get("wg_spoke_nodes", {}).values():
+        suffixes.append(spoke["ip_suffix"])
 
     assert len(suffixes) == len(set(suffixes))
+
+
+def test_wireguard_spoke_hubs_are_explicit_public_servers(inventory_context):
+    wg_servers = inventory_context["all_vars"]["wg_servers"]
+    wg_spokes = inventory_context["all_vars"].get("wg_spoke_nodes", {})
+    invalid = {}
+
+    for name, spoke in wg_spokes.items():
+        hub = spoke.get("hub")
+        if hub not in wg_servers:
+            invalid[name] = {"hub": hub, "reason": "unknown hub"}
+        elif not wg_servers[hub].get("endpoint"):
+            invalid[name] = {"hub": hub, "reason": "hub has no public endpoint"}
+
+    assert invalid == {}
 
 
 def test_wireguard_preshared_keys_cover_all_peer_pairs(inventory_context):
     all_vars = inventory_context["all_vars"]
     wg_servers = all_vars["wg_servers"]
     wg_clients = all_vars["wg_clients"]
+    wg_spokes = all_vars.get("wg_spoke_nodes", {})
     wg_psks = all_vars.get("wg_preshared_keys", {})
     server_psks = wg_psks.get("server_pairs", {})
     client_psks = wg_psks.get("client_pairs", {})
+    spoke_psks = wg_psks.get("spoke_pairs", {})
 
     expected_server_pairs = {
         "__".join(sorted([left, right]))
@@ -171,11 +190,17 @@ def test_wireguard_preshared_keys_cover_all_peer_pairs(inventory_context):
         for client in wg_clients
         for server in wg_servers
     }
+    expected_spoke_pairs = {
+        f"{spoke}__{attrs['hub']}"
+        for spoke, attrs in wg_spokes.items()
+    }
 
     assert set(server_psks) == expected_server_pairs
     assert set(client_psks) == expected_client_pairs
+    assert set(spoke_psks) == expected_spoke_pairs
     assert all(value for value in server_psks.values())
     assert all(value for value in client_psks.values())
+    assert all(value for value in spoke_psks.values())
 
 
 def test_tunnel_hosts_have_cloudflare_tunnel_tokens(inventory_context):

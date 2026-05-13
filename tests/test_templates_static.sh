@@ -92,17 +92,31 @@ assert_contains "$render_dir/certbot/cloudflare.ini" \
 	"dns_cloudflare_api_token = REPLACE_ME_CLOUDFLARE_DNS_API_TOKEN"
 assert_contains "$render_dir/wireguard/wg0.conf" "Address = 10.66.0.1/24"
 assert_contains "$render_dir/wireguard/wg0.conf" "Endpoint = vps-b.example.com:51820"
-assert_contains "$render_dir/wireguard/wg0.conf" "AllowedIPs = 10.66.0.2/32"
+assert_contains "$render_dir/wireguard/wg0.conf" "AllowedIPs = 10.66.0.2/32, 10.66.0.6/32"
 assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_VPS_A_VPS_B"
 assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
+assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
+	"# Spoke: homelab via this hub"
+assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
+	"AllowedIPs = 10.66.0.6/32"
+assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
+	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"Endpoint = vps-a.example.com:51820"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"AllowedIPs = 0.0.0.0/0, ::/0"
+assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
+	"Address = 10.66.0.6/24"
+assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
+	"Endpoint = vps-b.example.com:51820"
+assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
+	"AllowedIPs = 10.66.0.0/24"
+assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
+	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
 
 if command -v docker >/dev/null 2>&1; then
 	export RAILS_TRUSTED_PROXIES='["127.0.0.1","172.16.0.0/12","172.18.0.0/16"]'

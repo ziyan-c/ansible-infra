@@ -80,6 +80,16 @@
           - key: vps_a
             value: "{{ wg_servers.vps_a }}"
 
+    - name: Render WireGuard spoke template
+      ansible.builtin.template:
+        src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/spoke_config.conf.j2"
+        dest: "{{ render_dir }}/wireguard/spoke_homelab_via_vps_b.conf"
+        mode: "0600"
+      vars:
+        item:
+          key: homelab
+          value: "{{ wg_spoke_nodes.homelab }}"
+
 - name: Render static config templates for vps-b
   hosts: vps-b.example.com
   gather_facts: false
@@ -88,6 +98,11 @@
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    ansible_default_ipv4:
+      interface: eth0
+    ansible_facts:
+      default_ipv4:
+        interface: eth0
     proxy_control_plane_environment: production
     proxy_control_plane_project_dir: /opt/proxy-control-plane
     proxy_control_plane_container_name: proxy-control-plane_api
@@ -103,6 +118,8 @@
         dest: compose/proxy-control-plane.yml
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
         dest: caddy/vps-b.Caddyfile
+      - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
+        dest: wireguard/vps-b.wg0.conf
   tasks:
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:
@@ -117,6 +134,7 @@
       loop:
         - compose
         - caddy
+        - wireguard
 
     - name: Render config templates
       ansible.builtin.template:
