@@ -97,6 +97,10 @@ assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_VPS_A_VPS_B"
 assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
+if grep -F "# Spoke:" "$render_dir/wireguard/wg0.conf" >/dev/null; then
+	echo "non-hub WireGuard config must not render an empty spoke section" >&2
+	exit 1
+fi
 assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
 	"# Spoke: homelab via this hub"
 assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
