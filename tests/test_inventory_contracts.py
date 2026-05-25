@@ -91,10 +91,17 @@ def test_deploy_nodes_resolve_to_inventory_hosts(inventory_context):
         for key, value in inventory_context["all_vars"].items()
         if key.startswith("deploy_node_")
     }
+    disabled_deploy_nodes = {
+        f"deploy_node_{service.removesuffix('_enabled')}"
+        for service, enabled in inventory_context["all_vars"].items()
+        if service.endswith("_enabled")
+        and not enabled
+        and f"deploy_node_{service.removesuffix('_enabled')}" in deploy_nodes
+    }
     missing = {
         key: value
         for key, value in deploy_nodes.items()
-        if value not in inventory_context["hosts"]
+        if key not in disabled_deploy_nodes and value not in inventory_context["hosts"]
     }
 
     assert missing == {}
@@ -108,8 +115,17 @@ def test_deploy_nodes_match_their_service_groups(inventory_context):
         "deploy_node_mailcow": "mail_nodes",
     }
     mismatches = {}
+    disabled_deploy_nodes = {
+        f"deploy_node_{service.removesuffix('_enabled')}"
+        for service, enabled in inventory_context["all_vars"].items()
+        if service.endswith("_enabled")
+        and not enabled
+        and f"deploy_node_{service.removesuffix('_enabled')}" in expected_groups
+    }
 
     for var_name, group_name in expected_groups.items():
+        if var_name in disabled_deploy_nodes:
+            continue
         host = inventory_context["all_vars"][var_name]
         if host not in inventory_context["groups"][group_name]:
             mismatches[var_name] = {"host": host, "group": group_name}

@@ -121,6 +121,10 @@ assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
 	"AllowedIPs = 10.66.0.0/24"
 assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
+if grep -F "DNS =" "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" >/dev/null; then
+	echo "homelab spoke config must not override DNS unless explicitly configured" >&2
+	exit 1
+fi
 
 if command -v docker >/dev/null 2>&1; then
 	export RAILS_TRUSTED_PROXIES='["127.0.0.1","172.16.0.0/12","172.18.0.0/16"]'

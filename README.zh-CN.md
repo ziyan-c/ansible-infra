@@ -135,7 +135,9 @@ Ansible 会更新 VPS 端配置：非 hub 节点会把 `10.66.0.6/32` 路由到�
 ```
 
 把这个配置放到 homelab 机器上启动 `wg-quick@wg0` 即可。默认只把 WireGuard
-内网 CIDR 走 hub，不把公网全流量代理过去。
+内网 CIDR 走 hub，不把公网全流量代理过去。spoke 配置默认也不会写 `DNS`，
+避免把 homelab 本机的局域网域名解析、路由器域名或 NAS 名称解析改坏；只有你
+明确在 spoke 上设置 `dns:` 时才会让 `wg-quick` 接管 DNS。
 
 ## 私有状态备份
 

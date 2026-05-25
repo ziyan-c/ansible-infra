@@ -5,7 +5,9 @@ Address = {{ wg_network_prefix }}.{{ item.value.ip_suffix }}/24
 {% if (item.value.listen_port | default(0) | int) > 0 %}
 ListenPort = {{ item.value.listen_port | int }}
 {% endif %}
-DNS = {{ wg_dns }}
+{% if item.value.dns | default('') | length > 0 %}
+DNS = {{ item.value.dns }}
+{% endif %}
 MTU = 1280
 
 {% set hub_name = item.value.hub %}

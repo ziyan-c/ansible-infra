@@ -70,7 +70,7 @@
 # ==========================================
 # 动态判定：如果当前机器被分配为 Zammad 节点，则渲染工单代理
 # ==========================================
-{% if inventory_hostname == deploy_node_zammad %}
+{% if (zammad_enabled | default(true) | bool) and inventory_hostname == deploy_node_zammad %}
 
 support.{{ base_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key

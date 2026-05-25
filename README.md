@@ -136,6 +136,9 @@ public `Endpoint`. It also writes the manual homelab config to
 `.local/wg-spokes/homelab/homelab_via_fr.conf`; copy that config onto the
 homelab machine and start `wg-quick@wg0` there. The spoke config routes only
 the WireGuard CIDR through the hub by default, not all public Internet traffic.
+It also omits `DNS` by default so local LAN/domain resolution on the homelab
+machine stays untouched; set `dns:` on the spoke only if you really want
+`wg-quick` to override DNS.
 
 ## Private State Backup
 

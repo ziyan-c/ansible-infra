@@ -58,6 +58,7 @@ proxy_control_plane_xray_runtime_api_port: 10085
 proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
 
 deploy_node_neo_xray_under_caddy: vps-a.example.com
+zammad_enabled: true
 deploy_node_zammad: vps-b.example.com
 deploy_node_postgres: vps-b.example.com
 deploy_node_mailcow: vps-b.example.com
