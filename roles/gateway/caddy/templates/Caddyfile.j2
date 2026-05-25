@@ -12,9 +12,9 @@
 {% endmacro %}
 
 # ==========================================
-# 动态判定：如果当前机器被分配为 Neo/Xray under Caddy 节点，则渲染主站代理
+# 动态判定：如果当前机器被分配为 Xray under Caddy 节点，则渲染主站代理
 # ==========================================
-{% if inventory_hostname == deploy_node_neo_xray_under_caddy %}
+{% if inventory_hostname == deploy_node_xray_under_caddy %}
 
 {{ base_domain }} {
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
@@ -26,18 +26,6 @@
         Access-Control-Allow-Headers "Origin, Content-Type, Accept, Authorization"
         Access-Control-Max-Age "3600"
     }
-
-{% if enable_neo_backend_routes | default(false) | bool %}
-    handle /api/rag* {
-        uri strip_prefix /api/rag
-        reverse_proxy neo-backend:8000
-    }
-
-    handle /api/llm* {
-        uri strip_prefix /api/llm
-        reverse_proxy neo-backend:8080
-    }
-{% endif %}
 
     handle_path /sharing-protected* {
         root * /usr/share/caddy/sharing-protected

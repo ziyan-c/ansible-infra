@@ -12,16 +12,10 @@
     ansible_facts:
       default_ipv4:
         interface: eth0
-    enable_neo_backend_routes: true
-    neo_backend_image: "neo-backend:local"
-    neo_backend_container_name: neo-backend
-    neo_backend_publish_wireguard: true
     proxy_control_plane_runtime_api_enabled: true
     proxy_control_plane_runtime_api_host: "10.66.0.1"
     proxy_control_plane_subscription_proxy_enabled: true
     proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
-    neo_rag_proxy_port: 8000
-    neo_llm_proxy_port: 8080
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -35,8 +29,6 @@
         dest: compose/xray-under-caddy.yml
       - src: "{{ repo_root }}/roles/apps/xray/templates/docker-compose.yml.j2"
         dest: compose/xray.yml
-      - src: "{{ repo_root }}/roles/apps/neo_backend/templates/docker-compose.yml.j2"
-        dest: compose/neo_backend.yml
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
         dest: caddy/vps-a.Caddyfile
       - src: "{{ repo_root }}/roles/gateway/certbot/templates/cloudflare.ini.j2"

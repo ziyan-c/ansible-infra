@@ -95,16 +95,6 @@
       when: proxy_control_plane_enabled | default(false) | bool
 
 
-- name: 部署 AI 服务网关与隧道
-  hosts: neo_backend_nodes
-  become: yes
-  gather_facts: false
-  roles:
-    - role: apps/neo_backend
-      tags: ['neo', 'neo_backend', 'apps']
-      when: (neo_backend_enabled | default(enable_neo_backend_routes | default(false))) | bool
-
-
 # ==========================================
 # 第四阶段：控制面登记 (Control Plane Registration)
 # ==========================================

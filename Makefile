@@ -33,8 +33,6 @@ test-molecule:
 	cd roles/apps/xray && $(MOLECULE_ENV) molecule test -s default
 	cd roles/apps/cloudflared && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
 	cd roles/apps/cloudflared && $(MOLECULE_ENV) molecule test -s default
-	cd roles/apps/neo_backend && $(MOLECULE_ENV) molecule reset -s default >/dev/null 2>&1 || true
-	cd roles/apps/neo_backend && $(MOLECULE_ENV) molecule test -s default
 
 lint:
 	$(ANSIBLE_ENV) ansible-lint site.yml

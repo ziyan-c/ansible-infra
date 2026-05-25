@@ -23,7 +23,6 @@ cloudflared_image: "cloudflare/cloudflared:2026.3.0"
 
 base_domain: example.com
 xray_under_caddy_domain: xray-under-caddy.example.com
-enable_neo_backend_routes: false
 certbot_email: admin@example.com
 certbot_source_dir: /etc/letsencrypt/live/example.com/
 certbot_dest_dir: /opt/shared-certs/example.com
@@ -57,7 +56,7 @@ proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
 proxy_control_plane_xray_runtime_api_port: 10085
 proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
 
-deploy_node_neo_xray_under_caddy: vps-a.example.com
+deploy_node_xray_under_caddy: vps-a.example.com
 zammad_enabled: true
 deploy_node_zammad: vps-b.example.com
 deploy_node_postgres: vps-b.example.com
@@ -136,16 +135,3 @@ xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
 xray_public_key: "REPLACE_ME_XRAY_REALITY_PUBLIC_KEY"
 xray_reality_short_ids:
   - "0123456789abcdef"
-
-neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
-neo_backend_publish_wireguard: true
-neo_proxy_password_allow_empty: false
-neo_manage_ssh_tunnel: true
-ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
-neo_ssh_user: remote-user
-neo_ssh_host: compute.example.com
-neo_ssh_port: 22
-neo_remote_rag_host: localhost
-neo_remote_rag_port: 8000
-neo_remote_llm_host: localhost
-neo_remote_llm_port: 8080

@@ -67,8 +67,6 @@ fi
 
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "xray-under-caddy.example.com {"
-assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle /api/rag*"
-assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy neo-backend:8000"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "handle_path /xray/sub/*"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "rewrite * /sub{uri}"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.10:9710"
@@ -77,8 +75,10 @@ if [[ "$sub_route_count" != "1" ]]; then
 	echo "expected exactly one /xray/sub route on the main domain, got $sub_route_count" >&2
 	exit 1
 fi
-assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8000:8000"'
-assert_contains "$render_dir/compose/neo_backend.yml" '"10.66.0.1:8080:8080"'
+if grep -E "/api/(rag|llm)" "$render_dir/caddy/vps-a.Caddyfile" >/dev/null; then
+	echo "Caddyfile must not render retired AI gateway routes" >&2
+	exit 1
+fi
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \
 	"ghcr.io/ziyan-c/proxy-control-plane:0.2"
 assert_contains "$render_dir/compose/proxy-control-plane.yml" \

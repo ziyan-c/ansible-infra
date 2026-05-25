@@ -109,7 +109,7 @@ def test_deploy_nodes_resolve_to_inventory_hosts(inventory_context):
 
 def test_deploy_nodes_match_their_service_groups(inventory_context):
     expected_groups = {
-        "deploy_node_neo_xray_under_caddy": "xray_under_caddy_nodes",
+        "deploy_node_xray_under_caddy": "xray_under_caddy_nodes",
         "deploy_node_zammad": "zammad_nodes",
         "deploy_node_postgres": "db_postgres_nodes",
         "deploy_node_mailcow": "mail_nodes",

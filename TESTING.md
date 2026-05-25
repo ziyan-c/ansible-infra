@@ -158,7 +158,6 @@ The role-level template-convergence scenarios currently cover:
 - `roles/apps/xray_under_caddy`
 - `roles/apps/xray`
 - `roles/apps/cloudflared`
-- `roles/apps/neo_backend`
 
 They converge each role against localhost, write into Molecule temp directories,
 skip runtime Docker operations, validate idempotence, and verify rendered JSON

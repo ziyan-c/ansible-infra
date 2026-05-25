@@ -27,10 +27,8 @@
     xray_image: "ghcr.io/xtls/xray-core:test"
     pgvector_image: "ankane/pgvector:test"
     cloudflared_image: "cloudflare/cloudflared:test"
-    neo_ssh_tunnel_image: "alpine:test"
     base_domain: example.com
     xray_under_caddy_domain: xray-under-caddy.example.com
-    enable_neo_backend_routes: true
     certbot_email: admin@example.com
     certbot_source_dir: /etc/letsencrypt/live/example.com/
     certbot_dest_dir: /opt/shared-certs/example.com
@@ -39,7 +37,7 @@
     caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
     backup_keep_local: 7
     backup_keep_remote: 14
-    deploy_node_neo_xray_under_caddy: localhost
+    deploy_node_xray_under_caddy: localhost
     deploy_node_zammad: localhost
     deploy_node_postgres: localhost
     deploy_node_mailcow: localhost
@@ -86,11 +84,6 @@
     xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
     xray_reality_short_ids:
       - "0123456789abcdef"
-    neo_proxy_password: "REPLACE_ME_NEO_PROXY_PASSWORD"
-    ssh_tunnel_password: "REPLACE_ME_SSH_TUNNEL_PASSWORD"
-    neo_ssh_user: remote-user
-    neo_ssh_host: compute.example.com
-    neo_ssh_port: 22
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -104,8 +97,6 @@
         dest: compose/xray-under-caddy.yml
       - src: "{{ repo_root }}/roles/apps/xray/templates/docker-compose.yml.j2"
         dest: compose/xray.yml
-      - src: "{{ repo_root }}/roles/apps/neo_backend/templates/docker-compose.yml.j2"
-        dest: compose/neo_backend.yml
       - src: "{{ repo_root }}/roles/apps/postgres/templates/docker-compose.yml.j2"
         dest: compose/postgres.yml
       - src: "{{ repo_root }}/roles/apps/zammad/templates/docker-compose.yml.j2"
