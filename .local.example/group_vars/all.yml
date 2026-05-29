@@ -1,7 +1,7 @@
 ---
 # Host-safety switches. Defaults in the role preserve single-owner VPS behavior;
 # these example overrides are intentionally cautious.
-system_dist_upgrade_enabled: false
+system_apt_upgrade_mode: update_upgrade
 system_disable_ufw_apparmor: false
 root_authorized_keys_exclusive: false
 

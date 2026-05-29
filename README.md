@@ -274,7 +274,8 @@ server rather than proxied.
   firewalld, swap, Docker, cron, and service files.
 - `roles/base/system_init/defaults/main.yml` exposes switches for high-impact
   host changes:
-  - `system_dist_upgrade_enabled`
+  - `system_apt_upgrade_mode` (`update_only`, `update_upgrade`, or
+    `update_distupgrade`)
   - `system_disable_ufw_apparmor`
   - `root_authorized_keys_exclusive`
 - Secret-bearing rendered files should stay owner-readable only (`0600`) or

@@ -1,6 +1,10 @@
 ---
 # Defaults keep high-impact host changes explicit and cautious.
-system_dist_upgrade_enabled: true
+# Prefer the mode variable for new configs:
+#   update_only        -> apt update
+#   update_upgrade     -> apt update + apt upgrade
+#   update_distupgrade -> apt update + apt dist-upgrade
+system_apt_upgrade_mode: update_distupgrade
 system_disable_ufw_apparmor: true
 root_authorized_keys_exclusive: false
 rclone_config_force_update: false

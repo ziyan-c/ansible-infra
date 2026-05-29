@@ -274,7 +274,8 @@ Caddy 的 file server 处理，不要代理。
 
 - 多个 role 会管理 root 级别主机状态，例如 SSH、firewalld、swap、Docker、cron 和 service 文件。
 - `roles/base/system_init/defaults/main.yml` 暴露了几个高影响开关：
-  - `system_dist_upgrade_enabled`
+  - `system_apt_upgrade_mode`（`update_only`、`update_upgrade` 或
+    `update_distupgrade`）
   - `system_disable_ufw_apparmor`
   - `root_authorized_keys_exclusive`
 - 包含密钥的渲染文件应该保持 owner-only 可读，也就是 `0600`；脚本需要执行时再给 root 执行权限。

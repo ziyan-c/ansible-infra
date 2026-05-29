@@ -2,11 +2,27 @@
 # ==========================================
 # 1. 基础系统更新与软件安装
 # ==========================================
-- name: 更新 APT 缓存并升级系统 (dist-upgrade)
+- name: 校验 APT 升级模式
+  ansible.builtin.assert:
+    that:
+      - system_apt_upgrade_mode in ['update_only', 'update_upgrade', 'update_distupgrade']
+    fail_msg: >-
+      Invalid APT upgrade settings. Use system_apt_upgrade_mode update_only,
+      update_upgrade, or update_distupgrade.
+
+- name: 更新 APT 缓存
   apt:
     update_cache: yes
+
+- name: 普通升级系统包 (apt upgrade)
+  apt:
+    upgrade: yes
+  when: system_apt_upgrade_mode == 'update_upgrade'
+
+- name: 大升级系统包 (apt dist-upgrade)
+  apt:
     upgrade: dist
-  when: system_dist_upgrade_enabled | bool
+  when: system_apt_upgrade_mode == 'update_distupgrade'
 
 - name: 安装基础工具包 (替换原脚本 install_pkgs)
   apt:

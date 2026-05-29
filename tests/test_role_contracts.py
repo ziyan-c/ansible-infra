@@ -41,6 +41,27 @@ def test_rclone_config_update_requires_explicit_force_flag():
     assert 'force: "{{ rclone_config_force_update | bool }}"' in tasks
 
 
+def test_system_init_apt_upgrade_mode_separates_update_upgrade_and_dist_upgrade():
+    defaults = read_role_file("roles/base/system_init/defaults/main.yml")
+    tasks = read_role_file("roles/base/system_init/tasks/main.yml")
+    example_vars = read_role_file(".local.example/group_vars/all.yml")
+
+    assert "system_apt_upgrade_mode:" in defaults
+    assert "update_only" in defaults
+    assert "update_upgrade" in defaults
+    assert "update_distupgrade" in defaults
+
+    assert "system_apt_upgrade_mode: update_upgrade" in example_vars
+
+    assert "更新 APT 缓存" in tasks
+    assert "普通升级系统包 (apt upgrade)" in tasks
+    assert "大升级系统包 (apt dist-upgrade)" in tasks
+    assert "upgrade: yes" in tasks
+    assert "upgrade: dist" in tasks
+    assert "system_apt_upgrade_mode == 'update_upgrade'" in tasks
+    assert "system_apt_upgrade_mode == 'update_distupgrade'" in tasks
+
+
 def test_wireguard_supports_single_hub_spoke_nodes():
     tasks = read_role_file("roles/base/vpn_wireguard/tasks/main.yml")
     server_template = read_role_file("roles/base/vpn_wireguard/templates/wg0.conf.j2")
