@@ -3,6 +3,11 @@
   hosts: vps-a.example.com
   gather_facts: false
   connection: local
+  vars_files:
+    - ../.local.example/role_vars/certbot/main.yml
+    - ../.local.example/role_vars/mailcow/main.yml
+    - ../.local.example/role_vars/postgres/main.yml
+    - ../.local.example/role_vars/zammad/main.yml
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."

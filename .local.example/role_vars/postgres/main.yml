@@ -1,0 +1,9 @@
+---
+pgvector_image: "pgvector/pgvector:0.8.2-pg18-trixie"
+postgres_container_pgdata: "/var/lib/postgresql/18/docker"
+pg_user: postgres
+pg_password: "REPLACE_ME_POSTGRES_PASSWORD"
+pg_admin_password: "REPLACE_ME_POSTGRES_ADMIN_PASSWORD"
+pg_db_name: app
+pg_data_dir: /opt/postgres/data
+pg_custom_dir: /opt/postgres/custom_data

@@ -34,24 +34,24 @@ def test_certbot_sync_only_treats_confirmed_missing_edge_certs_as_missing():
 def test_rclone_config_update_requires_explicit_force_flag():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
 
     assert "rclone_config_force_update: false" in defaults
-    assert "rclone_config_force_update: false" in example_vars
+    assert "rclone_config_force_update: false" in system_role_vars
     assert 'force: "{{ rclone_config_force_update | bool }}"' in tasks
 
 
 def test_system_init_apt_upgrade_mode_separates_update_upgrade_and_dist_upgrade():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
 
     assert "system_apt_upgrade_mode:" in defaults
     assert "update_only" in defaults
     assert "update_upgrade" in defaults
     assert "update_distupgrade" in defaults
 
-    assert "system_apt_upgrade_mode: update_upgrade" in example_vars
+    assert "system_apt_upgrade_mode: update_upgrade" in system_role_vars
 
     assert "更新 APT 缓存" in tasks
     assert "普通升级系统包 (apt upgrade)" in tasks
@@ -66,7 +66,7 @@ def test_wireguard_supports_single_hub_spoke_nodes():
     tasks = read_role_file("roles/base/vpn_wireguard/tasks/main.yml")
     server_template = read_role_file("roles/base/vpn_wireguard/templates/wg0.conf.j2")
     spoke_template = read_role_file("roles/base/vpn_wireguard/templates/spoke_config.conf.j2")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    vpn_role_vars = read_role_file(".local.example/role_vars/vpn_wireguard/main.yml")
 
     assert "wg_spoke_nodes" in tasks
     assert "item.value.hub in wg_servers" in tasks
@@ -77,9 +77,9 @@ def test_wireguard_supports_single_hub_spoke_nodes():
     assert "# Spoke: {{ name }} via this hub" in server_template
     assert "Endpoint = {{ hub.endpoint }}:{{ wg_port }}" in spoke_template
     assert "AllowedIPs = {{ item.value.allowed_ips | default(wg_network_cidr) }}" in spoke_template
-    assert "wg_spoke_nodes:" in example_vars
-    assert "homelab:" in example_vars
-    assert "spoke_pairs:" in example_vars
+    assert "wg_spoke_nodes:" in vpn_role_vars
+    assert "homelab:" in vpn_role_vars
+    assert "spoke_pairs:" in vpn_role_vars
 
 
 def test_zammad_storage_status_uses_machine_readable_sentinels():
@@ -147,16 +147,25 @@ def test_proxy_control_plane_node_sync_registers_xray_under_caddy_and_xray_by_ap
     site = read_role_file("site.yml")
     tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
     defaults = read_role_file("roles/apps/proxy_control_plane_node_sync/defaults/main.yml")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    xray_role_vars = read_role_file(".local.example/role_vars/xray/main.yml")
+    xray_under_caddy_role_vars = read_role_file(
+        ".local.example/role_vars/xray_under_caddy/main.yml"
+    )
+    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
     inventory = read_role_file(".local.example/inventory.yml")
 
     assert "apps/proxy_control_plane_node_sync" in site
     assert "proxy_control_plane_sync_nodes" in site
+    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
+    assert "/role_vars/proxy_control_plane/main.yml" in site
+    assert "/role_vars/xray/main.yml" in site
+    assert "/role_vars/xray_under_caddy/main.yml" in site
     assert "proxy_control_plane_sync_nodes" in inventory
     assert "proxy_control_plane_node_sync_enabled: false" in defaults
     assert 'proxy_control_plane_api_url: "http://127.0.0.1:9710"' in defaults
-    assert "proxy_control_plane_node_sync_enabled: false" in example_vars
-    assert "xray_public_key" in example_vars
+    assert "proxy_control_plane_node_sync_enabled: false" in proxy_role_vars
+    assert "xray_public_key" in xray_role_vars
+    assert "xray_under_caddy_domain" in xray_under_caddy_role_vars
     assert "校验 Xray under Caddy 订阅域名" in tasks
     assert "/admin/login" in tasks
     assert "/admin/nodes/sync" in tasks
@@ -172,7 +181,7 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     defaults = read_role_file("roles/apps/proxy_control_plane/defaults/main.yml")
     compose = read_role_file("roles/apps/proxy_control_plane/templates/docker-compose.yml.j2")
     inventory = read_role_file(".local.example/inventory.yml")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
 
     assert "apps/proxy_control_plane" in site
     assert "proxy_control_plane_nodes" in site
@@ -194,7 +203,8 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "PCP_DATABASE_ENCRYPTION_KEY" not in compose
     assert "PCP_LISTEN_ADDR" not in compose
     assert "PCP_RUNTIME_SYNC_ENABLED" not in compose
-    assert "proxy_control_plane_enabled: false" in example_vars
+    assert "proxy_control_plane_enabled: false" in proxy_role_vars
+    assert 'proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"' in proxy_role_vars
 
 def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_config = read_role_file("roles/apps/xray/templates/config.json.j2")
@@ -202,7 +212,7 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_compose = read_role_file("roles/apps/xray/templates/docker-compose.yml.j2")
     xray_under_caddy_compose = read_role_file("roles/apps/xray_under_caddy/templates/docker-compose.yml.j2")
     sync_tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
 
     assert "proxy_control_plane_runtime_api_tag" in xray_config
     assert "proxy_control_plane_runtime_api_tag" in xray_under_caddy_config
@@ -216,25 +226,80 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     assert "runtime_api_host" in sync_tasks
     assert "runtime_api_port" in sync_tasks
     assert "runtime_inbound_tag" in sync_tasks
-    assert "proxy_control_plane_runtime_api_tag: proxy-control-plane-api" in example_vars
-    assert "proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in" in example_vars
-    assert "proxy_control_plane_xray_runtime_api_port: 10085" in example_vars
-    assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10085" in example_vars
+    assert "proxy_control_plane_runtime_api_tag: proxy-control-plane-api" in proxy_role_vars
+    assert "proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in" in proxy_role_vars
+    assert "proxy_control_plane_xray_runtime_api_port: 10085" in proxy_role_vars
+    assert "proxy_control_plane_xray_under_caddy_runtime_api_port: 10085" in proxy_role_vars
     assert '"clients": {{ xray_static_clients | default([]) | to_json }}' in xray_config
     assert '"clients": {{ xray_under_caddy_static_clients | default([]) | to_json }}' in xray_under_caddy_config
 
 def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
     caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
-    example_vars = read_role_file(".local.example/group_vars/all.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
 
     assert "proxy_control_plane_subscription_proxy_enabled: false" in caddy_defaults
-    assert "proxy_control_plane_subscription_proxy_enabled: false" in example_vars
+    assert "proxy_control_plane_subscription_proxy_enabled: false" in proxy_role_vars
     assert "proxy_control_plane_subscription_public_path: /xray/sub" in caddy_defaults
-    assert "proxy_control_plane_subscription_public_path: /xray/sub" in example_vars
+    assert "proxy_control_plane_subscription_public_path: /xray/sub" in proxy_role_vars
     assert "proxy_control_plane_subscription_proxy_upstream" in caddy_template
     assert caddy_template.count("{{ proxy_control_plane_subscription_routes() }}") == 1
     assert "handle_path {{ proxy_control_plane_subscription_public_path" in caddy_template
     assert "rewrite * /sub{uri}" in caddy_template
     assert "legacy-sub" not in caddy_template
     assert "proxy_control_plane_subscription_legacy_paths" not in caddy_template
+
+def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
+    site = read_role_file("site.yml")
+    tasks = read_role_file("roles/apps/logto/tasks/main.yml")
+    defaults = read_role_file("roles/apps/logto/defaults/main.yml")
+    compose = read_role_file("roles/apps/logto/templates/docker-compose.yml.j2")
+    env_template = read_role_file("roles/apps/logto/templates/app.env.j2")
+    caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
+    inventory = read_role_file(".local.example/inventory.yml")
+    logto_role_vars = read_role_file(".local.example/role_vars/logto/main.yml")
+
+    assert "apps/logto" in site
+    assert "logto_nodes" in site
+    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
+    assert "/role_vars/logto/main.yml" in site
+    assert "/role_vars/postgres/main.yml" in site
+    assert "/role_vars/vpn_wireguard/main.yml" in site
+    assert "logto_nodes" in inventory
+    assert 'logto_image: "ghcr.io/logto-io/logto:1.40.1"' in defaults
+    assert "logto_enabled: false" in defaults
+    assert "logto_postgres_delegate_host" in defaults
+    assert "logto_enabled: false" in logto_role_vars
+    assert "logto_db_password" in logto_role_vars
+    assert "wg_network_prefix" in logto_role_vars
+    assert "deploy_node_postgres" in logto_role_vars
+    logto_db_host_block = logto_role_vars.split("logto_db_host:", 1)[1].split(
+        "logto_db_port:",
+        1,
+    )[0]
+    assert "logto_bind_host" not in logto_db_host_block
+    assert "logto_postgres_delegate_host" in logto_role_vars
+    assert "logto_secret_vault_kek" in logto_role_vars
+    assert "SECRET_VAULT_KEK" in env_template
+    assert "DB_URL=postgres://" in env_template
+    assert "urlencode" in env_template
+    assert "TRUST_PROXY_HEADER" in env_template
+    assert '"{{ logto_bind_host }}:{{ logto_core_port | int }}:{{ logto_core_port | int }}"' in compose
+    assert '"{{ logto_bind_host }}:{{ logto_admin_port | int }}:{{ logto_admin_port | int }}"' in compose
+    assert "docker compose run --rm -T logto cli connector add -- --official" in tasks
+    assert "docker compose run --rm -T logto cli db seed -- --swe" in tasks
+    assert "docker compose run --rm -T -e CI=true logto alteration deploy latest" in tasks
+    assert 'delegate_to: "{{ logto_postgres_delegate_host }}"' in tasks
+    assert 'ALTER ROLE :"logto_user" CREATEROLE;' in tasks
+    assert "logto_proxy_upstream" not in caddy_template
+    assert "ADMIN_ENDPOINT" not in caddy_template
+    logto_caddy_block = caddy_template.split("{{ logto_domain }} {", 1)[1].split(
+        "{% endif %}",
+        1,
+    )[0]
+    assert "header_up X-Real-IP {http.request.header.CF-Connecting-IP}" in logto_caddy_block
+    assert (
+        "header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}"
+        in logto_caddy_block
+    )
+    assert "header_up Host {host}" not in logto_caddy_block

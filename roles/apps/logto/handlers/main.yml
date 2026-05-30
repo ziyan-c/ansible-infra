@@ -1,0 +1,6 @@
+---
+- name: Restart Logto
+  community.docker.docker_compose_v2:
+    project_src: "{{ logto_project_dir }}"
+    state: restarted
+  when: logto_manage_runtime | bool

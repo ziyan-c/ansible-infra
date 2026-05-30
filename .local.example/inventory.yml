@@ -55,6 +55,10 @@ all:
       hosts:
         vps-b.example.com:
 
+    logto_nodes:
+      hosts:
+        vps-b.example.com:
+
     mail_nodes:
       hosts:
         vps-b.example.com:

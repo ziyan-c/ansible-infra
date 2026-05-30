@@ -1,0 +1,5 @@
+---
+caddy_image: "caddy:2.11.2"
+caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
+caddy_cloudflare_cert_src: "{{ private_state_dir }}/role_vars/caddy/cf-certs/server.crt"
+caddy_cloudflare_key_src: "{{ private_state_dir }}/role_vars/caddy/cf-certs/server.key"

@@ -12,6 +12,22 @@
 {% endmacro %}
 
 # ==========================================
+# Logto IAM 普通入口；Admin Console 不做公网反代
+# ==========================================
+{% if (logto_enabled | default(false) | bool) and inventory_hostname == (deploy_node_logto_gateway | default('')) %}
+
+{{ logto_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+
+    reverse_proxy http://{{ logto_bind_host }}:{{ logto_core_port | int }} {
+        header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-Proto https
+    }
+}
+{% endif %}
+
+# ==========================================
 # 动态判定：如果当前机器被分配为 Xray under Caddy 节点，则渲染主站代理
 # ==========================================
 {% if inventory_hostname == deploy_node_xray_under_caddy %}

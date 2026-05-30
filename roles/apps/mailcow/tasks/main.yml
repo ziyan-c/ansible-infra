@@ -15,7 +15,7 @@
 
 - name: 下发预设的 mailcow.conf
   template:  # 👈 必须用 template 模块才能解析变量！
-    src: "{{ playbook_dir }}/.local/mailcow.conf.j2"
+    src: "{{ mailcow_config_template_src }}"
     dest: /opt/mailcow-dockerized/mailcow.conf
     owner: root
     group: root

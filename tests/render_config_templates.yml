@@ -3,6 +3,13 @@
   hosts: vps-a.example.com
   gather_facts: false
   connection: local
+  vars_files:
+    - ../.local.example/role_vars/caddy/main.yml
+    - ../.local.example/role_vars/certbot/main.yml
+    - ../.local.example/role_vars/docker_setup/main.yml
+    - ../.local.example/role_vars/vpn_wireguard/main.yml
+    - ../.local.example/role_vars/xray/main.yml
+    - ../.local.example/role_vars/xray_under_caddy/main.yml
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
@@ -14,8 +21,16 @@
         interface: eth0
     proxy_control_plane_runtime_api_enabled: true
     proxy_control_plane_runtime_api_host: "10.66.0.1"
+    proxy_control_plane_runtime_api_tag: proxy-control-plane-api
+    proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
+    proxy_control_plane_xray_runtime_api_port: 10085
+    proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
     proxy_control_plane_subscription_proxy_enabled: true
     proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
+    logto_enabled: true
+    logto_domain: auth.example.com
+    logto_bind_host: "10.66.0.2"
+    logto_core_port: 3001
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -86,6 +101,13 @@
   hosts: vps-b.example.com
   gather_facts: false
   connection: local
+  vars_files:
+    - ../.local.example/role_vars/certbot/main.yml
+    - ../.local.example/role_vars/cloudflared/main.yml
+    - ../.local.example/role_vars/logto/main.yml
+    - ../.local.example/role_vars/postgres/main.yml
+    - ../.local.example/role_vars/proxy_control_plane/main.yml
+    - ../.local.example/role_vars/vpn_wireguard/main.yml
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
@@ -108,6 +130,10 @@
         dest: compose/cloudflared.yml
       - src: "{{ repo_root }}/roles/apps/proxy_control_plane/templates/docker-compose.yml.j2"
         dest: compose/proxy-control-plane.yml
+      - src: "{{ repo_root }}/roles/apps/logto/templates/docker-compose.yml.j2"
+        dest: compose/logto.yml
+      - src: "{{ repo_root }}/roles/apps/logto/templates/app.env.j2"
+        dest: env/logto.env
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
         dest: caddy/vps-b.Caddyfile
       - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
@@ -125,6 +151,7 @@
         mode: "0700"
       loop:
         - compose
+        - env
         - caddy
         - wireguard
 

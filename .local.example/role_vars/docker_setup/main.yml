@@ -1,0 +1,4 @@
+---
+docker_log_max_size: "10m"
+docker_log_max_file: "3"
+docker_proxy_cidr: "172.18.0.0/16"

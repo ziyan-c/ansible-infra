@@ -1,0 +1,10 @@
+---
+xray_image: "ghcr.io/xtls/xray-core:25.8.3"
+xray_static_clients: []
+xray_reality_dest: "www.example.com:443"
+xray_reality_server_names:
+  - www.example.com
+xray_private_key: "REPLACE_ME_XRAY_REALITY_PRIVATE_KEY"
+xray_public_key: "REPLACE_ME_XRAY_REALITY_PUBLIC_KEY"
+xray_reality_short_ids:
+  - "0123456789abcdef"

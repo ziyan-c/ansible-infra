@@ -1,0 +1,14 @@
+name: logto
+
+services:
+  logto:
+    image: "{{ logto_image }}"
+    container_name: "{{ logto_container_name | default('logto') }}"
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    ports:
+      - "{{ logto_bind_host }}:{{ logto_core_port | int }}:{{ logto_core_port | int }}"
+      - "{{ logto_bind_host }}:{{ logto_admin_port | int }}:{{ logto_admin_port | int }}"
+    volumes:
+      - "{{ logto_project_dir | default('/opt/logto') }}/connectors:/etc/logto/packages/core/connectors"

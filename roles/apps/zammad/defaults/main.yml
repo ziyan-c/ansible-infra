@@ -1,0 +1,2 @@
+---
+zammad_env_template_src: "{{ private_state_dir | default(playbook_dir ~ '/.local') }}/role_vars/zammad/zammad.env.j2"

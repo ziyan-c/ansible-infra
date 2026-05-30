@@ -12,8 +12,9 @@ Postgres, Mailcow, Zammad, Xray, and Cloudflared.
 - `roles/base`: system initialization, Docker setup, and WireGuard mesh.
 - `roles/gateway`: Certbot certificate distribution and Caddy reverse proxy.
 - `roles/apps`: application stacks and backup jobs.
-- `.local/`: private inventory, vault password, host variables, certificates,
-  and rendered client files. This path is intentionally git-ignored.
+- `.local/`: private inventory, vault password, shared host variables,
+  per-role private variables under `role_vars/`, and rendered client files.
+  This path is intentionally git-ignored.
 - `.local.example/`: committed skeleton showing the expected private-state
   shape without real secrets.
 - `.local_encrypted.vault`: encrypted snapshot of `.local` for recovery.
@@ -42,10 +43,10 @@ inventory = .local/inventory.yml
 vault_password_file = .local/vault_password
 ```
 
-Before running the playbook, make sure `.local/` contains the private inventory
-and all variables referenced by the roles, including SSH keys, WireGuard keys,
-Cloudflare tokens, database passwords, Rclone config, and app-specific env
-templates.
+Before running the playbook, make sure `.local/` contains the private inventory,
+shared variables in `group_vars/all.yml`, and per-role private files under
+`.local/role_vars/<role>/`, including SSH keys, WireGuard keys, Cloudflare
+tokens, database passwords, Rclone config, and app-specific env templates.
 
 ## Common Commands
 
@@ -168,7 +169,7 @@ proxy_control_plane_enabled: true
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "{{ playbook_dir }}/.local/role_vars/proxy_control_plane/app.env"
+proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"
 ```
 
 Create `.local/role_vars/proxy_control_plane/app.env` as a symlink to the real
@@ -195,13 +196,16 @@ In the example inventory, `proxy_control_plane_sync_nodes` is the same host as
 `proxy_control_plane_nodes`, so sync does not depend on the local laptop being
 connected to the private mesh.
 
-Required private variables in `.local/group_vars/all.yml`:
+Required private variables live in the relevant role vars files:
 
 ```yaml
+# .local/role_vars/proxy_control_plane/main.yml
 proxy_control_plane_node_sync_enabled: true
 proxy_control_plane_api_url: "https://control-plane.example.com"
 proxy_control_plane_admin_email: "admin@example.com"
 proxy_control_plane_admin_password: "..."
+
+# .local/role_vars/xray/main.yml
 xray_public_key: "..."
 ```
 

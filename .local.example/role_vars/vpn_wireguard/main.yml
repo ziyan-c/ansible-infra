@@ -1,0 +1,47 @@
+---
+wg_network_cidr: "10.66.0.0/24"
+wg_network_prefix: "10.66.0"
+wg_port: 51820
+wg_dns: "1.1.1.1"
+
+wg_servers:
+  vps_a:
+    hostname: vps-a.example.com
+    endpoint: vps-a.example.com
+    ip_suffix: 1
+    pub: "REPLACE_ME_WG_SERVER_A_PUBLIC_KEY"
+    priv: "REPLACE_ME_WG_SERVER_A_PRIVATE_KEY"
+  vps_b:
+    hostname: vps-b.example.com
+    endpoint: vps-b.example.com
+    ip_suffix: 2
+    pub: "REPLACE_ME_WG_SERVER_B_PUBLIC_KEY"
+    priv: "REPLACE_ME_WG_SERVER_B_PRIVATE_KEY"
+
+wg_clients:
+  phone:
+    ip_suffix: 101
+    pub: "REPLACE_ME_CLIENT_PUBLIC_KEY"
+    priv: "REPLACE_ME_CLIENT_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+
+wg_spoke_nodes:
+  # Roaming node without a stable public endpoint. It is not managed by Ansible;
+  # Ansible only teaches the hub and the other VPS nodes how to route to it, and
+  # writes a local config under .local/wg-spokes/homelab/.
+  homelab:
+    hub: vps_b
+    ip_suffix: 6
+    pub: "REPLACE_ME_HOMELAB_PUBLIC_KEY"
+    priv: "REPLACE_ME_HOMELAB_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+    persistent_keepalive: 25
+
+wg_preshared_keys:
+  # One independent PSK per WireGuard peer pair. Generate real values with:
+  #   wg genpsk
+  server_pairs:
+    vps_a__vps_b: "REPLACE_ME_WG_PSK_VPS_A_VPS_B"
+  client_pairs:
+    phone__vps_a: "REPLACE_ME_WG_PSK_PHONE_VPS_A"
+    phone__vps_b: "REPLACE_ME_WG_PSK_PHONE_VPS_B"
+  spoke_pairs:
+    homelab__vps_b: "REPLACE_ME_WG_PSK_HOMELAB_VPS_B"

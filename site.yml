@@ -6,6 +6,10 @@
   hosts: init_nodes
   become: yes
   gather_facts: yes  # 👈 必须为 yes，否则拿不到网卡名
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/system_init/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/docker_setup/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
   roles:
     - role: base/system_init
       tags: ['init', 'base']
@@ -17,6 +21,8 @@
   hosts: vpn_mesh_nodes
   become: yes
   gather_facts: yes  # 👈 必须加上！防止单独跑 tags 时网卡变量未定义！
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
   roles:
     - role: base/vpn_wireguard
       tags: ['vpn', 'wireguard', 'base']
@@ -28,6 +34,8 @@
 - name: 部署泛域名证书中枢 (仅限主节点执行)
   hosts: cert_master_nodes   # 👈 完美解耦，只针对负责证书的组
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/certbot/main.yml"
   roles:
     - role: gateway/certbot
       tags: ['certbot', 'gateway']
@@ -35,6 +43,11 @@
 - name: 部署分布式 Web 网关 (Caddy)
   hosts: gateway_nodes       # 👈 所有网关节点并发执行
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/caddy/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray_under_caddy/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/logto/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: gateway/caddy
       tags: ['caddy', 'gateway']
@@ -46,6 +59,9 @@
 - name: 部署 Xray under Caddy 保险节点
   hosts: xray_under_caddy_nodes
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray_under_caddy/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: apps/xray_under_caddy
       tags: ['xray-under-caddy', 'apps']
@@ -53,6 +69,9 @@
 - name: 部署 Xray Reality 主力节点
   hosts: xray_nodes
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: apps/xray
       tags: ['xray', 'apps']
@@ -60,13 +79,31 @@
 - name: 部署 AI 向量数据库
   hosts: db_postgres_nodes  # 👈 修复：直接使用 inventory 中定义好的组名
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/postgres/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/certbot/main.yml"
   roles:
     - role: apps/postgres
       tags: ['db', 'postgres', 'apps']
 
+- name: 部署 Logto IAM 身份中心
+  hosts: logto_nodes
+  become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/logto/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/postgres/main.yml"
+  roles:
+    - role: apps/logto
+      tags: ['logto', 'iam', 'apps']
+      when: logto_enabled | default(false) | bool
+
 - name: 部署企业级邮局 Mailcow
   hosts: mail_nodes         # 👈 修复：直接使用 inventory 中定义好的组名
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/mailcow/main.yml"
   roles:
     - role: apps/mailcow
       tags: ['mailcow', 'apps']
@@ -74,6 +111,9 @@
 - name: 部署 Zammad 工单系统
   hosts: zammad_nodes       # 👈 修复：直接使用 inventory 中定义好的组名
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/zammad/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
   roles:
     - role: apps/zammad
       tags: ['zammad', 'apps']
@@ -82,6 +122,8 @@
 - name: 部署 Cloudflare Tunnel 接入点
   hosts: tunnel_nodes
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/cloudflared/main.yml"
   roles:
     - role: apps/cloudflared
       tags: ['cloudflared', 'tunnel', 'apps']
@@ -89,6 +131,8 @@
 - name: 部署 Proxy Control Plane 控制面
   hosts: proxy_control_plane_nodes
   become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: apps/proxy_control_plane
       tags: ['proxy-control-plane', 'control-plane', 'apps']
@@ -102,6 +146,10 @@
   hosts: proxy_control_plane_sync_nodes
   become: no
   gather_facts: false
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray_under_caddy/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: apps/proxy_control_plane_node_sync
       tags: ['control-plane', 'node-sync', 'apps']

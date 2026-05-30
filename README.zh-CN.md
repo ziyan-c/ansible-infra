@@ -12,7 +12,7 @@ Zammad、Xray、Cloudflared 等应用栈。
 - `roles/base`：系统初始化、Docker 安装、WireGuard mesh。
 - `roles/gateway`：Certbot 证书分发和 Caddy 反向代理。
 - `roles/apps`：应用服务栈和备份任务。
-- `.local/`：真实私有状态，包括 inventory、vault password、私有变量、证书和生成的客户端文件。这个目录被 Git 忽略。
+- `.local/`：真实私有状态，包括 inventory、vault password、共享 host 变量、`role_vars/` 下的 per-role 私有变量，以及生成的客户端文件。这个目录被 Git 忽略。
 - `.local.example/`：提交到仓库的私有状态骨架，不包含真实密钥。
 - `.local_encrypted.vault`：`.local` 的加密恢复包。
 
@@ -40,9 +40,10 @@ inventory = .local/inventory.yml
 vault_password_file = .local/vault_password
 ```
 
-运行 playbook 前，确保 `.local/` 里已经包含各 role 需要的私有
-inventory 和变量，例如 SSH key、WireGuard key、Cloudflare token、
-数据库密码、Rclone 配置和应用 `.env` 模板。
+运行 playbook 前，确保 `.local/` 里已经包含私有 inventory、`group_vars/all.yml`
+里的共享变量，以及 `.local/role_vars/<role>/` 下的 per-role 私有文件，例如
+SSH key、WireGuard key、Cloudflare token、数据库密码、Rclone 配置和应用
+`.env` 模板。
 
 ## 常用命令
 
@@ -169,7 +170,7 @@ proxy_control_plane_enabled: true
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "{{ playbook_dir }}/.local/role_vars/proxy_control_plane/app.env"
+proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"
 ```
 
 把 `.local/role_vars/proxy_control_plane/app.env` 创建成指向真实
@@ -201,13 +202,16 @@ Ansible 不直接写 PostgreSQL。
 inventory 里，`proxy_control_plane_sync_nodes` 和 `proxy_control_plane_nodes`
 是同一台主机，所以 node sync 不依赖本地笔记本是否接入私有 mesh。
 
-`.local/group_vars/all.yml` 里需要的私有变量示例：
+这些私有变量放在对应 role vars 里：
 
 ```yaml
+# .local/role_vars/proxy_control_plane/main.yml
 proxy_control_plane_node_sync_enabled: true
 proxy_control_plane_api_url: "https://control-plane.example.com"
 proxy_control_plane_admin_email: "admin@example.com"
 proxy_control_plane_admin_password: "..."
+
+# .local/role_vars/xray/main.yml
 xray_public_key: "..."
 ```
 

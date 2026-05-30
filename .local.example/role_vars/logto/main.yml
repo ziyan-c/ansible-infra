@@ -1,0 +1,22 @@
+---
+logto_enabled: false
+logto_image: "ghcr.io/logto-io/logto:1.40.1"
+logto_project_dir: /opt/logto
+logto_container_name: logto
+logto_domain: auth.example.com
+logto_bind_host: "10.66.0.2"
+logto_core_port: 3001
+logto_admin_port: 3002
+logto_endpoint: "https://{{ logto_domain }}"
+logto_admin_endpoint: "http://{{ logto_bind_host }}:{{ logto_admin_port }}"
+logto_trust_proxy_header: true
+logto_database_statement_timeout: ""
+logto_db_host: >-
+  {{ wg_network_prefix }}.{{ (wg_servers.values() | selectattr('hostname', 'equalto', deploy_node_postgres) | first).ip_suffix }}
+logto_db_port: 5432
+logto_db_name: logto
+logto_db_user: logto
+logto_db_password: "REPLACE_ME_32_BYTE_BASE64_LOGTO_DB_PASSWORD"
+logto_postgres_delegate_host: "{{ deploy_node_postgres }}"
+logto_secret_vault_kek: "REPLACE_ME_32_BYTE_BASE64_LOGTO_SECRET_VAULT_KEK"
+logto_run_connector_init: true

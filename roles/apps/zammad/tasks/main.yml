@@ -14,7 +14,7 @@
 
 - name: 下发 Zammad 环境变量 (.env)
   template:  # 👈 改成 template
-    src: "{{ playbook_dir }}/.local/zammad.env.j2"
+    src: "{{ zammad_env_template_src }}"
     dest: /opt/zammad/.env
     owner: root
     group: root

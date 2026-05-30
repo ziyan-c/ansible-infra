@@ -1,0 +1,151 @@
+---
+- name: 校验 Logto 部署配置
+  ansible.builtin.assert:
+    that:
+      - logto_image | length > 0
+      - logto_bind_host | length > 0
+      - logto_domain | length > 0
+      - logto_db_name | length > 0
+      - logto_db_user | length > 0
+      - logto_db_password | length > 0
+      - logto_secret_vault_kek | length > 0
+    fail_msg: >-
+      Set Logto image, bind host, domain, database credentials, and
+      SECRET_VAULT_KEK before enabling Logto.
+  no_log: true
+
+- name: 创建 Logto 工作目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ logto_owner }}"
+    group: "{{ logto_group }}"
+    mode: "0700"
+  loop:
+    - "{{ logto_project_dir }}"
+    - "{{ logto_project_dir }}/connectors"
+
+- name: 等待 Postgres 可用
+  ansible.builtin.command:
+    cmd: "docker exec postgres pg_isready -U {{ logto_postgres_admin_user }} -d postgres"
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  register: logto_postgres_ready
+  changed_when: false
+  until: logto_postgres_ready.rc == 0
+  retries: 12
+  delay: 5
+  when: logto_manage_runtime | bool
+
+- name: 创建 Logto 数据库用户与数据库
+  ansible.builtin.shell: |
+    set -euo pipefail
+    docker exec -i postgres psql \
+      -U "{{ logto_postgres_admin_user }}" \
+      -d postgres \
+      -v ON_ERROR_STOP=1 \
+      -v logto_user="{{ logto_db_user }}" \
+      -v logto_password="{{ logto_db_password }}" \
+      -v logto_db="{{ logto_db_name }}" <<'SQL'
+    SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'logto_user', :'logto_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'logto_user');
+    \gexec
+    ALTER ROLE :"logto_user" LOGIN PASSWORD :'logto_password';
+    ALTER ROLE :"logto_user" CREATEROLE;
+    SELECT format('CREATE DATABASE %I OWNER %I', :'logto_db', :'logto_user')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'logto_db');
+    \gexec
+    ALTER DATABASE :"logto_db" OWNER TO :"logto_user";
+    GRANT ALL PRIVILEGES ON DATABASE :"logto_db" TO :"logto_user";
+    SQL
+  args:
+    executable: /bin/bash
+  register: logto_db_setup_result
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  changed_when: >-
+    'CREATE ROLE' in logto_db_setup_result.stdout
+    or 'CREATE DATABASE' in logto_db_setup_result.stdout
+  no_log: true
+
+- name: 下发 Logto 环境变量文件
+  ansible.builtin.template:
+    src: app.env.j2
+    dest: "{{ logto_project_dir }}/app.env"
+    owner: "{{ logto_owner }}"
+    group: "{{ logto_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart Logto
+
+- name: 下发 Logto Docker Compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ logto_project_dir }}/docker-compose.yml"
+    owner: "{{ logto_owner }}"
+    group: "{{ logto_group }}"
+    mode: "0644"
+  notify: Restart Logto
+
+- name: 拉取 Logto 镜像
+  ansible.builtin.command:
+    cmd: docker compose pull logto
+    chdir: "{{ logto_project_dir }}"
+  register: logto_pull_result
+  changed_when: "'Downloaded newer image' in (logto_pull_result.stdout ~ logto_pull_result.stderr)"
+  when: logto_manage_runtime | bool
+
+- name: 初始化 Logto 官方连接器
+  ansible.builtin.command:
+    cmd: "docker compose run --rm -T logto cli connector add -- --official"
+    chdir: "{{ logto_project_dir }}"
+  changed_when: false
+  when:
+    - logto_manage_runtime | bool
+    - logto_run_connector_init | bool
+  no_log: true
+
+- name: 检查 Logto 数据库初始化标记
+  ansible.builtin.stat:
+    path: "{{ logto_project_dir }}/.db_seeded"
+  register: logto_seed_marker
+
+- name: 初始化 Logto 数据库
+  ansible.builtin.command:
+    cmd: "docker compose run --rm -T logto cli db seed -- --swe"
+    chdir: "{{ logto_project_dir }}"
+  register: logto_seed_result
+  when:
+    - logto_manage_runtime | bool
+    - logto_run_seed | bool
+    - not logto_seed_marker.stat.exists
+  no_log: true
+
+- name: 写入 Logto 数据库初始化标记
+  ansible.builtin.file:
+    path: "{{ logto_project_dir }}/.db_seeded"
+    state: touch
+    owner: "{{ logto_owner }}"
+    group: "{{ logto_group }}"
+    mode: "0600"
+  when:
+    - logto_manage_runtime | bool
+    - logto_run_seed | bool
+    - not logto_seed_marker.stat.exists
+    - logto_seed_result is succeeded
+
+- name: 执行 Logto 数据库变更
+  ansible.builtin.command:
+    cmd: "docker compose run --rm -T -e CI=true logto alteration deploy latest"
+    chdir: "{{ logto_project_dir }}"
+  register: logto_alteration_result
+  changed_when: false
+  when:
+    - logto_manage_runtime | bool
+    - logto_run_alteration | bool
+  no_log: true
+
+- name: 启动 Logto 容器
+  community.docker.docker_compose_v2:
+    project_src: "{{ logto_project_dir }}"
+    state: present
+    pull: missing
+  when: logto_manage_runtime | bool

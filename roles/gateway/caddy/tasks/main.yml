@@ -16,7 +16,7 @@
 
 - name: 下发 Cloudflare 源证书 (CRT)
   copy:
-    src: "{{ playbook_dir }}/.local/cf-certs/server.crt"  # 👈 修改这里
+    src: "{{ caddy_cloudflare_cert_src }}"
     dest: /opt/caddy/certs/cloudflare/server.crt
     owner: root
     group: root
@@ -25,7 +25,7 @@
 
 - name: 下发 Cloudflare 源证书私钥 (KEY)
   copy:
-    src: "{{ playbook_dir }}/.local/cf-certs/server.key"  # 👈 修改这里
+    src: "{{ caddy_cloudflare_key_src }}"
     dest: /opt/caddy/certs/cloudflare/server.key
     owner: root
     group: root

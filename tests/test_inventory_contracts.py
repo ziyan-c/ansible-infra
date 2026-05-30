@@ -23,6 +23,7 @@ def run_json(command):
         "ANSIBLE_VAULT_PASSWORD_FILE",
         str(REPO_ROOT / ".local.example/vault_password"),
     )
+    env.setdefault("ANSIBLE_PRIVATE_STATE_DIR", str(REPO_ROOT / ".local.example"))
 
     result = subprocess.run(
         command,
@@ -42,6 +43,10 @@ def inventory_context():
     )
     site = run_json(["yq", "-o=json", ".", "site.yml"])
     all_vars = run_json(["yq", "-o=json", ".", ".local.example/group_vars/all.yml"])
+    wg_vars = run_json(
+        ["yq", "-o=json", ".", ".local.example/role_vars/vpn_wireguard/main.yml"]
+    )
+    all_vars.update(wg_vars)
     hosts = set(inventory["_meta"]["hostvars"])
     groups = {
         name: set(data.get("hosts", []))
@@ -220,13 +225,9 @@ def test_wireguard_preshared_keys_cover_all_peer_pairs(inventory_context):
 
 
 def test_tunnel_hosts_have_cloudflare_tunnel_tokens(inventory_context):
-    missing = []
+    cloudflared_vars = run_json(
+        ["yq", "-o=json", ".", ".local.example/role_vars/cloudflared/main.yml"]
+    )
 
-    for host in inventory_context["groups"]["tunnel_nodes"]:
-        token = inventory_context["inventory"]["_meta"]["hostvars"][host].get(
-            "cf_tunnel_token"
-        )
-        if not token:
-            missing.append(host)
-
-    assert missing == []
+    assert inventory_context["groups"]["tunnel_nodes"]
+    assert cloudflared_vars.get("cf_tunnel_token")

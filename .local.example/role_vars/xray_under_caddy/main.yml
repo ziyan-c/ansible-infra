@@ -1,0 +1,4 @@
+---
+xray_under_caddy_image: "ghcr.io/xtls/xray-core:25.8.3"
+xray_under_caddy_domain: xray-under-caddy.example.com
+xray_under_caddy_static_clients: []
