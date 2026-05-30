@@ -11,8 +11,9 @@ logto_bind_host: "127.0.0.1"
 logto_core_port: 3001
 logto_admin_port: 3002
 logto_domain: auth.example.com
+logto_admin_domain: ""
 logto_endpoint: "https://{{ logto_domain }}"
-logto_admin_endpoint: "http://{{ logto_bind_host }}:{{ logto_admin_port }}"
+logto_admin_endpoint: "{{ ('https://' ~ logto_admin_domain) if (logto_admin_domain | default('') | length > 0) else ('http://' ~ logto_bind_host ~ ':' ~ (logto_admin_port | string)) }}"
 logto_trust_proxy_header: true
 logto_database_statement_timeout: ""
 

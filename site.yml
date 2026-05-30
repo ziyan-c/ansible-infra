@@ -44,6 +44,7 @@
   hosts: gateway_nodes       # 👈 所有网关节点并发执行
   become: yes
   vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/caddy/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray_under_caddy/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/logto/main.yml"

@@ -29,8 +29,13 @@
     proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
     logto_enabled: true
     logto_domain: auth.example.com
+    logto_admin_domain: logto-admin.example.com
+    logto_admin_proxy_enabled: true
+    logto_admin_allowed_remote_ips:
+      - 10.66.0.0/24
     logto_bind_host: "10.66.0.2"
     logto_core_port: 3001
+    logto_admin_port: 3002
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json

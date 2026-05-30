@@ -8,5 +8,10 @@ proxy_control_plane_subscription_public_path: /xray/sub
 logto_enabled: false
 deploy_node_logto_gateway: ""
 logto_domain: ""
+logto_admin_domain: ""
+logto_admin_proxy_enabled: false
+logto_admin_allowed_remote_ips:
+  - 127.0.0.1/32
 logto_bind_host: "127.0.0.1"
 logto_core_port: 3001
+logto_admin_port: 3002

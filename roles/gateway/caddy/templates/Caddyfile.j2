@@ -25,6 +25,23 @@
         header_up X-Forwarded-Proto https
     }
 }
+
+{% if (logto_admin_proxy_enabled | default(false) | bool) and (logto_admin_domain | default('') | length > 0) %}
+{{ logto_admin_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+
+    @logto_admin_denied {
+        not remote_ip {{ logto_admin_allowed_remote_ips | default(['127.0.0.1/32']) | join(' ') }}
+    }
+    abort @logto_admin_denied
+
+    reverse_proxy http://{{ logto_bind_host }}:{{ logto_admin_port | int }} {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+    }
+}
+{% endif %}
 {% endif %}
 
 # ==========================================

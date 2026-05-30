@@ -4,11 +4,15 @@ logto_image: "ghcr.io/logto-io/logto:1.40.1"
 logto_project_dir: /opt/logto
 logto_container_name: logto
 logto_domain: auth.example.com
+logto_admin_domain: logto-admin.example.com
+logto_admin_proxy_enabled: false
+logto_admin_allowed_remote_ips:
+  - "{{ wg_network_cidr }}"
 logto_bind_host: "10.66.0.2"
 logto_core_port: 3001
 logto_admin_port: 3002
 logto_endpoint: "https://{{ logto_domain }}"
-logto_admin_endpoint: "http://{{ logto_bind_host }}:{{ logto_admin_port }}"
+logto_admin_endpoint: "{{ ('https://' ~ logto_admin_domain) if logto_admin_proxy_enabled else ('http://' ~ logto_bind_host ~ ':' ~ (logto_admin_port | string)) }}"
 logto_trust_proxy_header: true
 logto_database_statement_timeout: ""
 logto_db_host: >-

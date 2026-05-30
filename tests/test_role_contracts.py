@@ -256,6 +256,7 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
     compose = read_role_file("roles/apps/logto/templates/docker-compose.yml.j2")
     env_template = read_role_file("roles/apps/logto/templates/app.env.j2")
     caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
+    caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     inventory = read_role_file(".local.example/inventory.yml")
     logto_role_vars = read_role_file(".local.example/role_vars/logto/main.yml")
 
@@ -268,8 +269,13 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
     assert "logto_nodes" in inventory
     assert 'logto_image: "ghcr.io/logto-io/logto:1.40.1"' in defaults
     assert "logto_enabled: false" in defaults
+    assert "logto_admin_proxy_enabled: false" in caddy_defaults
+    assert "logto_admin_allowed_remote_ips" in caddy_defaults
     assert "logto_postgres_delegate_host" in defaults
     assert "logto_enabled: false" in logto_role_vars
+    assert "logto_admin_domain" in logto_role_vars
+    assert "logto_admin_proxy_enabled" in logto_role_vars
+    assert "logto_admin_allowed_remote_ips" in logto_role_vars
     assert "logto_db_password" in logto_role_vars
     assert "wg_network_prefix" in logto_role_vars
     assert "deploy_node_postgres" in logto_role_vars
@@ -294,7 +300,7 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
     assert "logto_proxy_upstream" not in caddy_template
     assert "ADMIN_ENDPOINT" not in caddy_template
     logto_caddy_block = caddy_template.split("{{ logto_domain }} {", 1)[1].split(
-        "{% endif %}",
+        "{% if (logto_admin_proxy_enabled",
         1,
     )[0]
     assert "header_up X-Real-IP {http.request.header.CF-Connecting-IP}" in logto_caddy_block
@@ -303,3 +309,8 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
         in logto_caddy_block
     )
     assert "header_up Host {host}" not in logto_caddy_block
+    assert "{{ logto_admin_domain }} {" in caddy_template
+    assert "@logto_admin_denied {" in caddy_template
+    assert "not remote_ip" in caddy_template
+    assert "abort @logto_admin_denied" in caddy_template
+    assert "reverse_proxy http://{{ logto_bind_host }}:{{ logto_admin_port | int }}" in caddy_template
