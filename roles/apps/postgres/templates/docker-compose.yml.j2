@@ -12,11 +12,12 @@ services:
       POSTGRES_USER: "{{ pg_user }}"
       POSTGRES_PASSWORD: "{{ pg_password }}"
       POSTGRES_DB: "{{ pg_db_name }}"
+      PGDATA: "{{ postgres_container_pgdata }}"
     ports:
       # 👇 完美解耦：自动绑定到正确的内网 IP 上
       - "{{ wg_network_prefix }}.{{ db_node.ip_suffix }}:5432:5432"
     volumes:
-      - "{{ pg_data_dir }}:/var/lib/postgresql/data"
+      - "{{ pg_data_dir }}:{{ postgres_container_pgdata }}"
       - "{{ pg_custom_dir }}:/custom_data"
       - "{{ certbot_dest_dir }}/fullchain.pem:/var/lib/postgresql/fullchain.pem:ro"
       - "{{ certbot_dest_dir }}/privkey.pem:/var/lib/postgresql/privkey.pem:ro"

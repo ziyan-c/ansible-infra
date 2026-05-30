@@ -18,7 +18,8 @@ docker_log_max_file: "3"
 caddy_image: "caddy:2.11.2"
 xray_under_caddy_image: "ghcr.io/xtls/xray-core:25.8.3"
 xray_image: "ghcr.io/xtls/xray-core:25.8.3"
-pgvector_image: "ankane/pgvector:v0.5.1"
+pgvector_image: "pgvector/pgvector:0.8.2-pg18-trixie"
+postgres_container_pgdata: "/var/lib/postgresql/18/docker"
 cloudflared_image: "cloudflare/cloudflared:2026.3.0"
 
 base_domain: example.com
