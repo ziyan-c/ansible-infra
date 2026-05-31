@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+POSTGRES_CONTAINER="${SFTPGO_POSTGRES_CONTAINER:-postgres}"
+POSTGRES_ADMIN_USER="${SFTPGO_POSTGRES_ADMIN_USER:-{{ sftpgo_postgres_admin_user | default(pg_user | default('postgres')) }}}"
+SFTPGO_DB_NAME="${SFTPGO_DB_NAME:-{{ sftpgo_db_name | default('sftpgo') }}}"
+
+DEFENDER_EVENT_RETENTION_DAYS="${SFTPGO_DEFENDER_EVENT_RETENTION_DAYS:-{{ sftpgo_defender_event_retention_days | default(90) | int }}}"
+DEFENDER_HOST_RETENTION_DAYS="${SFTPGO_DEFENDER_HOST_RETENTION_DAYS:-{{ sftpgo_defender_host_retention_days | default(90) | int }}}"
+SHARED_SESSION_RETENTION_DAYS="${SFTPGO_SHARED_SESSION_RETENTION_DAYS:-{{ sftpgo_shared_session_retention_days | default(7) | int }}}"
+ACTIVE_TRANSFER_STALE_HOURS="${SFTPGO_ACTIVE_TRANSFER_STALE_HOURS:-{{ sftpgo_active_transfer_stale_hours | default(24) | int }}}"
+STALE_NODE_RETENTION_DAYS="${SFTPGO_STALE_NODE_RETENTION_DAYS:-{{ sftpgo_stale_node_retention_days | default(30) | int }}}"
+
+echo "[$(date -Is)] Starting SFTPGo retention cleanup for database '${SFTPGO_DB_NAME}' ..."
+
+if ! docker container inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
+  echo "[$(date -Is)] ERROR: Postgres container '${POSTGRES_CONTAINER}' was not found." >&2
+  exit 1
+fi
+
+docker exec "$POSTGRES_CONTAINER" \
+  pg_isready -U "$POSTGRES_ADMIN_USER" -d "$SFTPGO_DB_NAME" >/dev/null
+
+docker exec -i "$POSTGRES_CONTAINER" psql \
+  -U "$POSTGRES_ADMIN_USER" \
+  -d "$SFTPGO_DB_NAME" \
+  -v ON_ERROR_STOP=1 \
+  -v defender_event_days="$DEFENDER_EVENT_RETENTION_DAYS" \
+  -v defender_host_days="$DEFENDER_HOST_RETENTION_DAYS" \
+  -v shared_session_days="$SHARED_SESSION_RETENTION_DAYS" \
+  -v active_transfer_hours="$ACTIVE_TRANSFER_STALE_HOURS" \
+  -v stale_node_days="$STALE_NODE_RETENTION_DAYS" <<'SQL'
+\pset pager off
+
+CREATE OR REPLACE FUNCTION pg_temp.sftpgo_ms_cutoff(retention_days integer)
+RETURNS bigint
+LANGUAGE sql
+AS $$
+  SELECT floor(extract(epoch FROM now() - make_interval(days => retention_days)) * 1000)::bigint;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.sftpgo_ms_cutoff_hours(retention_hours integer)
+RETURNS bigint
+LANGUAGE sql
+AS $$
+  SELECT floor(extract(epoch FROM now() - make_interval(hours => retention_hours)) * 1000)::bigint;
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.sftpgo_delete_if_exists(table_name text, condition text)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  target_table regclass := to_regclass(table_name);
+  deleted_count bigint := 0;
+BEGIN
+  IF target_table IS NULL THEN
+    RAISE NOTICE 'Skipping missing table %', table_name;
+    RETURN 0;
+  END IF;
+
+  EXECUTE format('DELETE FROM %s WHERE %s', target_table, condition);
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$;
+
+SELECT 'defender_events' AS table_name,
+       pg_temp.sftpgo_delete_if_exists(
+         'public.defender_events',
+         format('date_time < %s', pg_temp.sftpgo_ms_cutoff(:defender_event_days))
+       ) AS deleted_rows;
+
+SELECT 'defender_hosts' AS table_name,
+       pg_temp.sftpgo_delete_if_exists(
+         'public.defender_hosts',
+         format(
+           'ban_time > 0 AND ban_time < %s AND NOT EXISTS (SELECT 1 FROM public.defender_events WHERE defender_events.host_id = defender_hosts.id)',
+           pg_temp.sftpgo_ms_cutoff(:defender_host_days)
+         )
+       ) AS deleted_rows;
+
+SELECT 'shared_sessions' AS table_name,
+       pg_temp.sftpgo_delete_if_exists(
+         'public.shared_sessions',
+         format('timestamp < %s', pg_temp.sftpgo_ms_cutoff(:shared_session_days))
+       ) AS deleted_rows;
+
+SELECT 'active_transfers' AS table_name,
+       pg_temp.sftpgo_delete_if_exists(
+         'public.active_transfers',
+         format('updated_at < %s', pg_temp.sftpgo_ms_cutoff_hours(:active_transfer_hours))
+       ) AS deleted_rows;
+
+SELECT 'nodes' AS table_name,
+       pg_temp.sftpgo_delete_if_exists(
+         'public.nodes',
+         format('updated_at < %s', pg_temp.sftpgo_ms_cutoff(:stale_node_days))
+       ) AS deleted_rows;
+
+SELECT format('VACUUM ANALYZE %s;', table_oid)
+FROM unnest(ARRAY[
+  to_regclass('public.defender_events'),
+  to_regclass('public.defender_hosts'),
+  to_regclass('public.shared_sessions'),
+  to_regclass('public.active_transfers'),
+  to_regclass('public.nodes')
+]) AS table_oid
+WHERE table_oid IS NOT NULL
+\gexec
+SQL
+
+echo "[$(date -Is)] SFTPGo retention cleanup finished."

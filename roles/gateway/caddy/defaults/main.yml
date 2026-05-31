@@ -16,6 +16,17 @@ logto_admin_allowed_remote_ips:
 logto_bind_host: "127.0.0.1"
 logto_core_port: 3001
 logto_admin_port: 3002
+sftpgo_enabled: false
+deploy_node_sftpgo_gateway: ""
+sftpgo_domain: ""
+sftpgo_admin_domain: ""
+sftpgo_admin_proxy_enabled: false
+sftpgo_admin_tls_provider: "cloudflare"
+sftpgo_admin_allowed_remote_ips:
+  - 127.0.0.1/32
+sftpgo_bind_host: "127.0.0.1"
+sftpgo_public_http_port: 8090
+sftpgo_admin_http_port: 8091
 caddy_letsencrypt_live_dir: /etc/letsencrypt/live
 caddy_letsencrypt_archive_dir: /etc/letsencrypt/archive
 caddy_backup_script_path: /opt/caddy/caddy_backup.sh

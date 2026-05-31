@@ -1,0 +1,6 @@
+---
+- name: Restart SFTPGo
+  community.docker.docker_compose_v2:
+    project_src: "{{ sftpgo_project_dir }}"
+    state: restarted
+  when: sftpgo_manage_runtime | bool

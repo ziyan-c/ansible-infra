@@ -17,11 +17,13 @@ Expected private files:
 - `role_vars/cloudflared/main.yml`: Cloudflared tunnel token and image pin.
 - `role_vars/docker_setup/main.yml`: Docker daemon policy.
 - `role_vars/system_init/main.yml`: host initialization, SSH, swap, and rclone
-  variables.
+  config.
 - `role_vars/caddy/cf-certs/server.crt` and
   `role_vars/caddy/cf-certs/server.key`: Cloudflare origin cert pair copied by
   the Caddy role.
 - `role_vars/logto/main.yml`: Logto IAM private variables.
+- `role_vars/sftpgo/main.yml`: SFTPGo file portal private variables,
+  including its optional GDrive mount and locally generated strong secrets.
 - `role_vars/mailcow/main.yml` and `role_vars/mailcow/mailcow.conf.j2`:
   Mailcow private variables and rendered config template.
 - `role_vars/postgres/main.yml`: Postgres image, credentials, and data paths.

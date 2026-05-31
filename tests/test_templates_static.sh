@@ -79,8 +79,24 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "@logto_admin_denied {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "not remote_ip 10.66.0.0/24"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.2:3002"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "abort @logto_admin_denied"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "files.example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.1:8090"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "files-admin.example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "@sftpgo_admin_denied {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "not remote_ip 10.66.0.0/24"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "abort @sftpgo_admin_denied"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.1:8091"
 assert_contains "$render_dir/compose/caddy.yml" '"/etc/letsencrypt/live:/etc/letsencrypt/live:ro"'
 assert_contains "$render_dir/compose/caddy.yml" '"/etc/letsencrypt/archive:/etc/letsencrypt/archive:ro"'
+assert_contains "$render_dir/compose/sftpgo.yml" "drakkan/sftpgo:v2.7.3"
+assert_contains "$render_dir/compose/sftpgo.yml" '"10.66.0.1:8090:8090"'
+assert_contains "$render_dir/compose/sftpgo.yml" '"10.66.0.1:8091:8091"'
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_DATA_PROVIDER__DRIVER=postgresql"
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_HTTPD__BINDINGS__0__ENABLE_WEB_ADMIN=false"
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_HTTPD__BINDINGS__1__ENABLE_WEB_ADMIN=true"
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_HTTPD__BINDINGS__0__DISABLED_LOGIN_METHODS=85"
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_HTTPD__BINDINGS__1__DISABLED_LOGIN_METHODS=0"
+assert_contains "$render_dir/env/sftpgo.env" "SFTPGO_HTTPD__BINDINGS__0__BASE_URL=https://files.example.com"
 sub_route_count="$(grep -F -c "handle_path /xray/sub/*" "$render_dir/caddy/vps-a.Caddyfile")"
 if [[ "$sub_route_count" != "1" ]]; then
 	echo "expected exactly one /xray/sub route on the main domain, got $sub_route_count" >&2

@@ -1,0 +1,24 @@
+name: sftpgo
+
+services:
+  sftpgo:
+    image: "{{ sftpgo_image }}"
+    container_name: "{{ sftpgo_container_name }}"
+    restart: unless-stopped
+    env_file:
+      - ./app.env
+    ports:
+      - "{{ sftpgo_bind_host }}:{{ sftpgo_public_http_port | int }}:{{ sftpgo_public_http_port | int }}"
+      - "{{ sftpgo_bind_host }}:{{ sftpgo_admin_http_port | int }}:{{ sftpgo_admin_http_port | int }}"
+{% if sftpgo_sftp_enabled | bool %}
+      - "{{ sftpgo_bind_host }}:{{ sftpgo_sftp_port | int }}:{{ sftpgo_sftp_port | int }}"
+{% endif %}
+    volumes:
+      - "{{ sftpgo_storage_dir }}:/srv/sftpgo"
+      - "{{ sftpgo_config_dir }}:/var/lib/sftpgo"
+    networks:
+      - "{{ sftpgo_docker_network }}"
+
+networks:
+  {{ sftpgo_docker_network }}:
+    external: true

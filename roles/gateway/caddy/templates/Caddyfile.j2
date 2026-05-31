@@ -49,6 +49,45 @@
 {% endif %}
 
 # ==========================================
+# SFTPGo 文件门户：公网 WebClient + 内网 Admin
+# ==========================================
+{% if (sftpgo_enabled | default(false) | bool) and inventory_hostname == (deploy_node_sftpgo_gateway | default('')) %}
+
+{{ sftpgo_domain }} {
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+
+    reverse_proxy http://{{ sftpgo_bind_host }}:{{ sftpgo_public_http_port | int }} {
+        header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+        header_up X-Forwarded-Proto https
+        header_up Host {host}
+    }
+}
+
+{% if (sftpgo_admin_proxy_enabled | default(false) | bool) and (sftpgo_admin_domain | default('') | length > 0) %}
+{{ sftpgo_admin_domain }} {
+{% if (sftpgo_admin_tls_provider | default('cloudflare')) == 'certbot' %}
+    tls /etc/letsencrypt/live/{{ base_domain }}/fullchain.pem /etc/letsencrypt/live/{{ base_domain }}/privkey.pem
+{% else %}
+    tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+{% endif %}
+
+    @sftpgo_admin_denied {
+        not remote_ip {{ sftpgo_admin_allowed_remote_ips | default(['127.0.0.1/32']) | join(' ') }}
+    }
+    abort @sftpgo_admin_denied
+
+    reverse_proxy http://{{ sftpgo_bind_host }}:{{ sftpgo_admin_http_port | int }} {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto https
+        header_up Host {host}
+    }
+}
+{% endif %}
+{% endif %}
+
+# ==========================================
 # 动态判定：如果当前机器被分配为 Xray under Caddy 节点，则渲染主站代理
 # ==========================================
 {% if inventory_hostname == deploy_node_xray_under_caddy %}

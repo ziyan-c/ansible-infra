@@ -1,0 +1,9 @@
+{{ sftpgo_retention_log_file }} {
+    daily
+    rotate {{ sftpgo_retention_logrotate_keep | int }}
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+}

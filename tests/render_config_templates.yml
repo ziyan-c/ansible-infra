@@ -37,6 +37,42 @@
     logto_bind_host: "10.66.0.2"
     logto_core_port: 3001
     logto_admin_port: 3002
+    sftpgo_enabled: true
+    sftpgo_image: "drakkan/sftpgo:v2.7.3"
+    sftpgo_domain: files.example.com
+    sftpgo_admin_domain: files-admin.example.com
+    sftpgo_admin_proxy_enabled: true
+    sftpgo_admin_tls_provider: certbot
+    sftpgo_admin_allowed_remote_ips:
+      - 10.66.0.0/24
+    sftpgo_bind_host: "10.66.0.1"
+    sftpgo_public_http_port: 8090
+    sftpgo_admin_http_port: 8091
+    sftpgo_sftp_enabled: false
+    sftpgo_sftp_port: 2022
+    sftpgo_container_name: sftpgo
+    sftpgo_docker_network: web-proxy
+    sftpgo_storage_dir: /mnt/gdrive/SFTPGO-STORAGE
+    sftpgo_config_dir: /opt/sftpgo/config
+    sftpgo_grace_time: 32
+    sftpgo_hide_support_link: true
+    sftpgo_setup_installation_code: ""
+    sftpgo_public_disabled_login_methods: 85
+    sftpgo_admin_disabled_login_methods: 0
+    sftpgo_proxy_allowed:
+      - 127.0.0.1/32
+      - 172.16.0.0/12
+    sftpgo_client_ip_proxy_header: X-Forwarded-For
+    sftpgo_client_ip_header_depth: 0
+    sftpgo_security_allowed_hosts: []
+    sftpgo_db_host: "10.66.0.2"
+    sftpgo_db_port: 5432
+    sftpgo_db_name: sftpgo
+    sftpgo_db_user: sftpgo
+    sftpgo_db_password: REPLACE_ME_SFTPGO_DB_PASSWORD
+    sftpgo_db_sslmode: 0
+    sftpgo_signing_passphrase: REPLACE_ME_SFTPGO_SIGNING_PASSPHRASE
+    sftpgo_oidc_enabled: false
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -50,6 +86,10 @@
         dest: compose/xray-under-caddy.yml
       - src: "{{ repo_root }}/roles/apps/xray/templates/docker-compose.yml.j2"
         dest: compose/xray.yml
+      - src: "{{ repo_root }}/roles/apps/sftpgo/templates/docker-compose.yml.j2"
+        dest: compose/sftpgo.yml
+      - src: "{{ repo_root }}/roles/apps/sftpgo/templates/app.env.j2"
+        dest: env/sftpgo.env
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/Caddyfile.j2"
         dest: caddy/vps-a.Caddyfile
       - src: "{{ repo_root }}/roles/gateway/certbot/templates/cloudflare.ini.j2"
@@ -70,6 +110,7 @@
       loop:
         - json
         - compose
+        - env
         - caddy
         - certbot
         - wireguard

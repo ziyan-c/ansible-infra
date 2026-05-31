@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGETS=(
+  "{{ sftpgo_storage_dir }}"
+  "{{ sftpgo_config_dir }}"
+)
+BACKUP_ROOT="${SFTPGO_BACKUP_ROOT:-{{ sftpgo_backup_root }}}"
+REMOTE="${SFTPGO_BACKUP_REMOTE:-{{ sftpgo_backup_remote }}}"
+LOCAL_KEEP="{{ sftpgo_backup_keep_local | int }}"
+REMOTE_KEEP="{{ sftpgo_backup_keep_remote | int }}"
+TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
+ARCHIVE_NAME="sftpgo_backup_${TIMESTAMP}.tar.gz"
+ARCHIVE_PATH="${BACKUP_ROOT}/${ARCHIVE_NAME}"
+
+mkdir -p "$BACKUP_ROOT"
+
+cleanup_local() {
+    find "$BACKUP_ROOT" -maxdepth 1 -type f -name 'sftpgo_backup_*.tar.gz' -printf '%T@ %p\n' \
+        | sort -rn \
+        | awk -v keep="$LOCAL_KEEP" 'NR > keep { print $2 }' \
+        | xargs -r rm -f
+}
+
+cleanup_remote() {
+    if [[ -z "$REMOTE" ]]; then
+        return 0
+    fi
+
+    rclone lsf "$REMOTE" --files-only 2>/dev/null \
+        | awk '/^sftpgo_backup_/ { print }' \
+        | sort -r \
+        | awk -v keep="$REMOTE_KEEP" 'NR > keep { print }' \
+        | while IFS= read -r old_archive; do
+            rclone deletefile "${REMOTE%/}/$old_archive"
+        done
+}
+
+tar -czf "$ARCHIVE_PATH" "${TARGETS[@]}"
+
+if [[ -n "$REMOTE" ]]; then
+    rclone mkdir "$REMOTE"
+    rclone copy "$ARCHIVE_PATH" "$REMOTE"
+    cleanup_remote
+fi
+
+cleanup_local

@@ -8,11 +8,16 @@
     - ../.local.example/role_vars/logto/main.yml
     - ../.local.example/role_vars/mailcow/main.yml
     - ../.local.example/role_vars/postgres/main.yml
+    - ../.local.example/role_vars/sftpgo/main.yml
     - ../.local.example/role_vars/zammad/main.yml
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    sftpgo_config_dir: /opt/sftpgo/config
+    sftpgo_backup_root: /opt/sftpgo_backups
+    sftpgo_backup_keep_local: 7
+    sftpgo_backup_keep_remote: 14
     shell_templates:
       - src: "{{ repo_root }}/roles/gateway/caddy/templates/caddy_backup.sh.j2"
         dest: caddy_backup.sh
@@ -24,6 +29,10 @@
         dest: pg_backup_all.sh
       - src: "{{ repo_root }}/roles/apps/logto/templates/logto_retention_cleanup.sh.j2"
         dest: logto_retention_cleanup.sh
+      - src: "{{ repo_root }}/roles/apps/sftpgo/templates/sftpgo_retention_cleanup.sh.j2"
+        dest: sftpgo_retention_cleanup.sh
+      - src: "{{ repo_root }}/roles/apps/sftpgo/templates/sftpgo_backup.sh.j2"
+        dest: sftpgo_backup.sh
       - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_sync.sh.j2"
         dest: zammad_sync.sh
       - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_backup_config.j2"

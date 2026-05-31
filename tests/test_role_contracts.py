@@ -59,6 +59,53 @@ def test_rclone_config_update_requires_explicit_force_flag():
     assert 'force: "{{ rclone_config_force_update | bool }}"' in tasks
 
 
+def test_sftpgo_gdrive_mount_is_role_scoped_and_systemd_managed():
+    system_defaults = read_role_file("roles/base/system_init/defaults/main.yml")
+    system_tasks = read_role_file("roles/base/system_init/tasks/main.yml")
+    defaults = read_role_file("roles/apps/sftpgo/defaults/main.yml")
+    tasks = read_role_file("roles/apps/sftpgo/tasks/main.yml")
+    service = read_role_file("roles/apps/sftpgo/templates/rclone-gdrive.service.j2")
+    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
+    sftpgo_role_vars = read_role_file(".local.example/role_vars/sftpgo/main.yml")
+
+    assert "rclone_gdrive_mount_enabled" not in system_defaults
+    assert "rclone_gdrive_mount_enabled" not in system_role_vars
+    assert "rclone-gdrive.service.j2" not in system_tasks
+    assert "sftpgo_gdrive_mount_enabled: true" in defaults
+    assert "sftpgo_gdrive_mount_enabled: true" in sftpgo_role_vars
+    assert "sftpgo_gdrive_mount_point: /mnt/gdrive" in defaults
+    assert 'sftpgo_gdrive_mount_remote: "gdrive:"' in defaults
+    assert "sftpgo_gdrive_storage_subdir: SFTPGO-STORAGE" in defaults
+    assert 'sftpgo_storage_dir: "{{ sftpgo_gdrive_mount_point }}/{{ sftpgo_gdrive_storage_subdir }}"' in defaults
+    assert "sftpgo_gdrive_mount_service_name: rclone-gdrive" in defaults
+    assert "安装 SFTPGo GDrive mount 依赖" in tasks
+    assert "- fuse3" in tasks
+    assert "检查 Rclone 配置是否存在" in tasks
+    assert "/root/.config/rclone/rclone.conf" in tasks
+    assert "允许 SFTPGo GDrive mount 被容器用户读取" in tasks
+    assert "user_allow_other" in tasks
+    assert "rclone mkdir {{ sftpgo_gdrive_storage_remote }}" in tasks
+    assert "下发 SFTPGo GDrive mount systemd unit" in tasks
+    assert "确认 SFTPGo GDrive 已挂载" in tasks
+    assert "findmnt -rn {{ sftpgo_gdrive_mount_point }}" in tasks
+    assert "创建 SFTPGo GDrive 主存储目录" in tasks
+    assert "mkdir -p {{ sftpgo_storage_dir }} {{ sftpgo_storage_dir }}/data {{ sftpgo_storage_dir }}/backups" in tasks
+    assert "移除旧的 SFTPGo GDrive mount 文件日志轮转" in tasks
+    assert "sftpgo_gdrive_mount_log_file" not in defaults
+    assert "sftpgo_gdrive_mount_logrotate_keep" not in defaults
+    assert "when: sftpgo_gdrive_mount_enabled | bool" in tasks
+    assert "rclone mount {{ sftpgo_gdrive_mount_remote }} {{ sftpgo_gdrive_mount_point }}" in service
+    assert "--log-file" not in service
+    assert "StandardOutput=journal" in service
+    assert "StandardError=journal" in service
+    assert "--vfs-cache-mode=writes" in defaults
+    assert "--poll-interval=1m" in defaults
+    assert "--uid={{ sftpgo_owner_uid }}" in defaults
+    assert "--gid={{ sftpgo_owner_gid }}" in defaults
+    assert "--umask=002" in defaults
+    assert "--drive-skip-gdocs" in defaults
+
+
 def test_system_init_apt_upgrade_mode_separates_update_upgrade_and_dist_upgrade():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")
@@ -346,3 +393,101 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
     assert "not remote_ip" in caddy_template
     assert "abort @logto_admin_denied" in caddy_template
     assert "reverse_proxy http://{{ logto_bind_host }}:{{ logto_admin_port | int }}" in caddy_template
+
+
+def test_sftpgo_role_is_wg_bound_and_separates_public_and_admin_bindings():
+    site = read_role_file("site.yml")
+    tasks = read_role_file("roles/apps/sftpgo/tasks/main.yml")
+    defaults = read_role_file("roles/apps/sftpgo/defaults/main.yml")
+    compose = read_role_file("roles/apps/sftpgo/templates/docker-compose.yml.j2")
+    env_template = read_role_file("roles/apps/sftpgo/templates/app.env.j2")
+    backup_script = read_role_file("roles/apps/sftpgo/templates/sftpgo_backup.sh.j2")
+    retention_script = read_role_file("roles/apps/sftpgo/templates/sftpgo_retention_cleanup.sh.j2")
+    caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
+    caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
+    inventory = read_role_file(".local.example/inventory.yml")
+    sftpgo_role_vars = read_role_file(".local.example/role_vars/sftpgo/main.yml")
+
+    assert "apps/sftpgo" in site
+    assert "sftpgo_nodes" in site
+    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
+    assert "/role_vars/sftpgo/main.yml" in site
+    assert "/role_vars/postgres/main.yml" in site
+    assert "/role_vars/vpn_wireguard/main.yml" in site
+    assert "sftpgo_nodes" in inventory
+
+    assert 'sftpgo_image: "drakkan/sftpgo:v2.7.3"' in defaults
+    assert "sftpgo_enabled: false" in defaults
+    assert "sftpgo_admin_proxy_enabled: false" in caddy_defaults
+    assert "sftpgo_admin_allowed_remote_ips" in caddy_defaults
+    assert "sftpgo_postgres_delegate_host" in defaults
+    assert "sftpgo_retention_enabled: true" in defaults
+    assert 'sftpgo_retention_project_dir: "{{ sftpgo_project_dir }}/retention"' in defaults
+    assert "sftpgo_defender_event_retention_days: 90" in defaults
+    assert "sftpgo_shared_session_retention_days: 7" in defaults
+    assert "sftpgo_active_transfer_stale_hours: 24" in defaults
+    assert "sftpgo_backup_cron_file: sftpgo_backup" in defaults
+    assert "sftpgo_enabled: false" in sftpgo_role_vars
+    assert 'sftpgo_storage_dir: "{{ sftpgo_gdrive_mount_point }}/{{ sftpgo_gdrive_storage_subdir }}"' in sftpgo_role_vars
+    assert "sftpgo_db_password" in sftpgo_role_vars
+    assert "sftpgo_signing_passphrase" in sftpgo_role_vars
+    assert "sftpgo_oidc_enabled: false" in sftpgo_role_vars
+    assert "sftpgo_retention_enabled: true" in sftpgo_role_vars
+    assert "deploy_node_sftpgo" in sftpgo_role_vars
+    assert "deploy_node_postgres" in sftpgo_role_vars
+
+    assert "docker compose run --rm -T sftpgo sftpgo initprovider" in tasks
+    assert 'delegate_to: "{{ sftpgo_postgres_delegate_host }}"' in tasks
+    assert "下发 SFTPGo retention 清理脚本到 SFTPGo 节点" in tasks
+    assert "下发 SFTPGo retention 清理脚本到 Postgres 节点" in tasks
+    assert "SFTPGo retention cleanup" in tasks
+    assert "cron_file: \"{{ sftpgo_retention_cron_file }}\"" in tasks
+    assert "/etc/logrotate.d/sftpgo_retention_cleanup" in tasks
+    assert "run_once: true" in tasks
+    assert "cron_file: \"{{ sftpgo_backup_cron_file }}\"" in tasks
+    assert "user: root" in tasks
+    assert "/etc/logrotate.d/sftpgo_backup" in tasks
+
+    assert "env_file:" in compose
+    assert "./app.env" in compose
+    assert '"{{ sftpgo_bind_host }}:{{ sftpgo_public_http_port | int }}:{{ sftpgo_public_http_port | int }}"' in compose
+    assert '"{{ sftpgo_bind_host }}:{{ sftpgo_admin_http_port | int }}:{{ sftpgo_admin_http_port | int }}"' in compose
+    assert "{{ sftpgo_storage_dir }}:/srv/sftpgo" in compose
+    assert "{{ sftpgo_config_dir }}:/var/lib/sftpgo" in compose
+
+    assert "SFTPGO_DATA_PROVIDER__DRIVER=postgresql" in env_template
+    assert "SFTPGO_DATA_PROVIDER__PASSWORD={{ sftpgo_db_password }}" in env_template
+    assert "SFTPGO_HTTPD__SIGNING_PASSPHRASE" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__0__OIDC__CONFIG_URL" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__0__ENABLE_WEB_ADMIN=false" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__0__ENABLE_WEB_CLIENT=true" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__0__DISABLED_LOGIN_METHODS={{ sftpgo_public_disabled_login_methods | int }}" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__1__ENABLE_WEB_ADMIN=true" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__1__ENABLE_WEB_CLIENT=false" in env_template
+    assert "SFTPGO_HTTPD__BINDINGS__1__DISABLED_LOGIN_METHODS={{ sftpgo_admin_disabled_login_methods | int }}" in env_template
+
+    assert "sftpgo_backup_" in backup_script
+    assert "rclone copy" in backup_script
+    assert "{{ sftpgo_storage_dir }}" in backup_script
+    assert "{{ sftpgo_config_dir }}" in backup_script
+
+    assert "public.defender_events" in retention_script
+    assert "public.defender_hosts" in retention_script
+    assert "public.shared_sessions" in retention_script
+    assert "public.active_transfers" in retention_script
+    assert "public.nodes" in retention_script
+    assert "VACUUM ANALYZE" in retention_script
+    assert "public.users" not in retention_script
+    assert "public.shares" not in retention_script
+    assert "public.api_keys" not in retention_script
+
+    assert "{{ sftpgo_domain }} {" in caddy_template
+    assert "@sftpgo_admin_paths {" not in caddy_template
+    assert "abort @sftpgo_admin_paths" not in caddy_template
+    assert "{{ sftpgo_admin_domain }} {" in caddy_template
+    assert "@sftpgo_admin_denied {" in caddy_template
+    assert "not remote_ip {{ sftpgo_admin_allowed_remote_ips" in caddy_template
+    assert "abort @sftpgo_admin_denied" in caddy_template
+    assert "reverse_proxy http://{{ sftpgo_bind_host }}:{{ sftpgo_public_http_port | int }}" in caddy_template
+    assert "reverse_proxy http://{{ sftpgo_bind_host }}:{{ sftpgo_admin_http_port | int }}" in caddy_template
+    assert "sftpgo_admin_uses_certbot_tls" in read_role_file("roles/gateway/caddy/templates/docker-compose.yml.j2")

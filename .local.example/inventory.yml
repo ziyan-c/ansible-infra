@@ -59,6 +59,10 @@ all:
       hosts:
         vps-b.example.com:
 
+    sftpgo_nodes:
+      hosts:
+        vps-a.example.com:
+
     mail_nodes:
       hosts:
         vps-b.example.com:

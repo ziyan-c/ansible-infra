@@ -1,0 +1,423 @@
+---
+- name: 校验 SFTPGo 部署配置
+  ansible.builtin.assert:
+    that:
+      - sftpgo_image | length > 0
+      - sftpgo_project_dir | length > 0
+      - sftpgo_storage_dir | length > 0
+      - sftpgo_bind_host | length > 0
+      - sftpgo_domain | length > 0
+      - sftpgo_db_name | length > 0
+      - sftpgo_db_user | length > 0
+      - sftpgo_db_password | length > 0
+      - sftpgo_signing_passphrase | length > 0
+      - (not (sftpgo_oidc_enabled | bool)) or (sftpgo_oidc_client_id | length > 0)
+      - (not (sftpgo_oidc_enabled | bool)) or (sftpgo_oidc_client_secret | length > 0)
+    fail_msg: >-
+      Set SFTPGo image, bind host, domain, database credentials, signing
+      passphrase, and OIDC client credentials if OIDC is enabled.
+  no_log: true
+
+- name: 创建 SFTPGo 工作目录
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ sftpgo_project_dir }}"
+      owner: "{{ sftpgo_owner }}"
+      group: "{{ sftpgo_group }}"
+      mode: "0700"
+    - path: "{{ sftpgo_config_dir }}"
+      owner: "{{ sftpgo_owner_uid }}"
+      group: "{{ sftpgo_owner_gid }}"
+      mode: "0700"
+
+- name: 安装 SFTPGo GDrive mount 依赖
+  ansible.builtin.apt:
+    name:
+      - rclone
+      - fuse3
+    state: present
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 检查 Rclone 配置是否存在
+  ansible.builtin.stat:
+    path: /root/.config/rclone/rclone.conf
+  register: sftpgo_rclone_config
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 校验 SFTPGo GDrive mount 前置条件
+  ansible.builtin.assert:
+    that:
+      - sftpgo_rclone_config.stat.exists | default(false)
+      - sftpgo_gdrive_mount_remote | length > 0
+      - sftpgo_gdrive_mount_point | length > 0
+      - sftpgo_gdrive_storage_remote | length > 0
+    fail_msg: >-
+      SFTPGo GDrive mount requires /root/.config/rclone/rclone.conf and a
+      non-empty mount remote/point. Run system_init first to install the rclone
+      config, or disable sftpgo_gdrive_mount_enabled.
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 检查 SFTPGo GDrive mount systemd unit
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ sftpgo_gdrive_mount_service_name }}.service"
+  register: sftpgo_gdrive_mount_unit
+  when: not (sftpgo_gdrive_mount_enabled | bool)
+
+- name: 停用 SFTPGo GDrive mount
+  ansible.builtin.systemd:
+    name: "{{ sftpgo_gdrive_mount_service_name }}.service"
+    state: stopped
+    enabled: false
+  when:
+    - not (sftpgo_gdrive_mount_enabled | bool)
+    - sftpgo_gdrive_mount_unit.stat.exists | default(false)
+
+- name: 移除 SFTPGo GDrive mount systemd unit
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ sftpgo_gdrive_mount_service_name }}.service"
+    state: absent
+  register: sftpgo_gdrive_mount_unit_removed
+  when:
+    - not (sftpgo_gdrive_mount_enabled | bool)
+    - sftpgo_gdrive_mount_unit.stat.exists | default(false)
+
+- name: 重载 systemd unit cache
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when:
+    - not (sftpgo_gdrive_mount_enabled | bool)
+    - sftpgo_gdrive_mount_unit_removed.changed | default(false)
+
+- name: 移除旧的 SFTPGo GDrive mount 文件日志轮转
+  ansible.builtin.file:
+    path: /etc/logrotate.d/rclone_gdrive_mount
+    state: absent
+
+- name: 创建 SFTPGo GDrive mount 目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ sftpgo_gdrive_mount_point }}"
+    - "{{ sftpgo_gdrive_mount_cache_dir }}"
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 允许 SFTPGo GDrive mount 被容器用户读取
+  ansible.builtin.lineinfile:
+    path: /etc/fuse.conf
+    regexp: '^#?user_allow_other$'
+    line: user_allow_other
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - sftpgo_gdrive_mount_enabled | bool
+    - "'--allow-other' in sftpgo_gdrive_mount_options"
+
+- name: 确保 SFTPGo GDrive 存储远端目录存在
+  ansible.builtin.command:
+    cmd: "rclone mkdir {{ sftpgo_gdrive_storage_remote }} --config /root/.config/rclone/rclone.conf"
+  changed_when: false
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 下发 SFTPGo GDrive mount systemd unit
+  ansible.builtin.template:
+    src: rclone-gdrive.service.j2
+    dest: "/etc/systemd/system/{{ sftpgo_gdrive_mount_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  register: sftpgo_gdrive_mount_unit_template
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 启动并启用 SFTPGo GDrive mount
+  ansible.builtin.systemd:
+    name: "{{ sftpgo_gdrive_mount_service_name }}.service"
+    state: "{{ 'restarted' if (sftpgo_gdrive_mount_unit_template.changed | default(false)) else 'started' }}"
+    enabled: true
+    daemon_reload: true
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 确认 SFTPGo GDrive 已挂载
+  ansible.builtin.command:
+    cmd: "findmnt -rn {{ sftpgo_gdrive_mount_point }}"
+  register: sftpgo_gdrive_mount_check
+  changed_when: false
+  until: sftpgo_gdrive_mount_check.rc == 0
+  retries: 6
+  delay: 5
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 创建 SFTPGo GDrive 主存储目录
+  ansible.builtin.command:
+    cmd: "mkdir -p {{ sftpgo_storage_dir }} {{ sftpgo_storage_dir }}/data {{ sftpgo_storage_dir }}/backups"
+  changed_when: false
+  when: sftpgo_gdrive_mount_enabled | bool
+
+- name: 创建 SFTPGo 本地主存储目录
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ sftpgo_owner_uid }}"
+    group: "{{ sftpgo_owner_gid }}"
+    mode: "0750"
+  loop:
+    - "{{ sftpgo_storage_dir }}"
+    - "{{ sftpgo_storage_dir }}/data"
+    - "{{ sftpgo_storage_dir }}/backups"
+  when: not (sftpgo_gdrive_mount_enabled | bool)
+
+- name: 等待 Postgres 可用
+  ansible.builtin.command:
+    cmd: "docker exec postgres pg_isready -U {{ sftpgo_postgres_admin_user }} -d postgres"
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  register: sftpgo_postgres_ready
+  changed_when: false
+  until: sftpgo_postgres_ready.rc == 0
+  retries: 12
+  delay: 5
+  when:
+    - sftpgo_manage_runtime | bool
+    - sftpgo_manage_database | bool
+
+- name: 创建 SFTPGo 数据库用户与数据库
+  ansible.builtin.shell: |
+    set -euo pipefail
+    docker exec -i postgres psql \
+      -U "{{ sftpgo_postgres_admin_user }}" \
+      -d postgres \
+      -v ON_ERROR_STOP=1 \
+      -v sftpgo_user="{{ sftpgo_db_user }}" \
+      -v sftpgo_password="{{ sftpgo_db_password }}" \
+      -v sftpgo_db="{{ sftpgo_db_name }}" <<'SQL'
+    SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'sftpgo_user', :'sftpgo_password')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'sftpgo_user');
+    \gexec
+    ALTER ROLE :"sftpgo_user" LOGIN PASSWORD :'sftpgo_password';
+    SELECT format('CREATE DATABASE %I OWNER %I', :'sftpgo_db', :'sftpgo_user')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'sftpgo_db');
+    \gexec
+    ALTER DATABASE :"sftpgo_db" OWNER TO :"sftpgo_user";
+    GRANT ALL PRIVILEGES ON DATABASE :"sftpgo_db" TO :"sftpgo_user";
+    SQL
+  args:
+    executable: /bin/bash
+  register: sftpgo_db_setup_result
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  changed_when: >-
+    'CREATE ROLE' in sftpgo_db_setup_result.stdout
+    or 'CREATE DATABASE' in sftpgo_db_setup_result.stdout
+  when: sftpgo_manage_database | bool
+  no_log: true
+
+- name: 下发 SFTPGo 环境变量文件
+  ansible.builtin.template:
+    src: app.env.j2
+    dest: "{{ sftpgo_project_dir }}/app.env"
+    owner: "{{ sftpgo_owner }}"
+    group: "{{ sftpgo_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart SFTPGo
+
+- name: 下发 SFTPGo Docker Compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ sftpgo_project_dir }}/docker-compose.yml"
+    owner: "{{ sftpgo_owner }}"
+    group: "{{ sftpgo_group }}"
+    mode: "0644"
+  notify: Restart SFTPGo
+
+- name: 确保 SFTPGo Docker 网络存在
+  community.docker.docker_network:
+    name: "{{ sftpgo_docker_network }}"
+    state: present
+  when: sftpgo_manage_runtime | bool
+
+- name: 拉取 SFTPGo 镜像
+  ansible.builtin.command:
+    cmd: docker compose pull sftpgo
+    chdir: "{{ sftpgo_project_dir }}"
+  register: sftpgo_pull_result
+  changed_when: "'Downloaded newer image' in (sftpgo_pull_result.stdout ~ sftpgo_pull_result.stderr)"
+  when: sftpgo_manage_runtime | bool
+
+- name: 初始化或升级 SFTPGo data provider
+  ansible.builtin.command:
+    cmd: docker compose run --rm -T sftpgo sftpgo initprovider
+    chdir: "{{ sftpgo_project_dir }}"
+  changed_when: false
+  when:
+    - sftpgo_manage_runtime | bool
+    - sftpgo_run_initprovider | bool
+
+- name: 启动 SFTPGo 容器
+  community.docker.docker_compose_v2:
+    project_src: "{{ sftpgo_project_dir }}"
+    state: present
+    pull: missing
+  when: sftpgo_manage_runtime | bool
+
+- name: 创建 SFTPGo retention 目录
+  ansible.builtin.file:
+    path: "{{ sftpgo_retention_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: sftpgo_retention_enabled | bool
+
+- name: 下发 SFTPGo retention 清理脚本到 SFTPGo 节点
+  ansible.builtin.template:
+    src: sftpgo_retention_cleanup.sh.j2
+    dest: "{{ sftpgo_retention_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  when: sftpgo_retention_enabled | bool
+
+- name: 创建 SFTPGo retention 执行目录
+  ansible.builtin.file:
+    path: "{{ sftpgo_retention_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: sftpgo_retention_enabled | bool
+
+- name: 下发 SFTPGo retention 清理脚本到 Postgres 节点
+  ansible.builtin.template:
+    src: sftpgo_retention_cleanup.sh.j2
+    dest: "{{ sftpgo_retention_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: sftpgo_retention_enabled | bool
+
+- name: 配置 SFTPGo retention 定时任务
+  ansible.builtin.cron:
+    name: "SFTPGo retention cleanup"
+    cron_file: "{{ sftpgo_retention_cron_file }}"
+    user: root
+    minute: "{{ sftpgo_retention_cron_minute }}"
+    hour: "{{ sftpgo_retention_cron_hour }}"
+    job: "{{ sftpgo_retention_script_path }} >> {{ sftpgo_retention_log_file }} 2>&1"
+    state: present
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: sftpgo_retention_enabled | bool
+
+- name: 移除 SFTPGo retention 定时任务
+  ansible.builtin.cron:
+    name: "SFTPGo retention cleanup"
+    cron_file: "{{ sftpgo_retention_cron_file }}"
+    user: root
+    state: absent
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: not (sftpgo_retention_enabled | bool)
+
+- name: 配置 SFTPGo retention 日志轮转
+  ansible.builtin.template:
+    src: sftpgo_retention_logrotate.j2
+    dest: /etc/logrotate.d/sftpgo_retention_cleanup
+    owner: root
+    group: root
+    mode: "0644"
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: sftpgo_retention_enabled | bool
+
+- name: 移除禁用后的 SFTPGo retention 日志轮转
+  ansible.builtin.file:
+    path: /etc/logrotate.d/sftpgo_retention_cleanup
+    state: absent
+  delegate_to: "{{ sftpgo_postgres_delegate_host }}"
+  run_once: true
+  when: not (sftpgo_retention_enabled | bool)
+
+- name: 创建 SFTPGo 备份目录
+  ansible.builtin.file:
+    path: "{{ sftpgo_backup_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: sftpgo_backup_enabled | bool
+
+- name: 下发 SFTPGo 文件备份脚本
+  ansible.builtin.template:
+    src: sftpgo_backup.sh.j2
+    dest: "{{ sftpgo_backup_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  when: sftpgo_backup_enabled | bool
+
+- name: 移除旧的 SFTPGo root crontab 备份任务
+  ansible.builtin.cron:
+    name: "SFTPGo File Backup"
+    state: absent
+
+- name: 配置 SFTPGo 文件备份定时任务
+  ansible.builtin.cron:
+    name: "SFTPGo File Backup"
+    cron_file: "{{ sftpgo_backup_cron_file }}"
+    user: root
+    minute: "{{ sftpgo_backup_cron_minute }}"
+    hour: "{{ sftpgo_backup_cron_hour }}"
+    job: "{{ sftpgo_backup_script_path }} >> {{ sftpgo_backup_log_file }} 2>&1"
+    state: present
+  when: sftpgo_backup_enabled | bool
+
+- name: 移除 SFTPGo 文件备份定时任务
+  ansible.builtin.cron:
+    name: "SFTPGo File Backup"
+    cron_file: "{{ sftpgo_backup_cron_file }}"
+    user: root
+    state: absent
+  when: not (sftpgo_backup_enabled | bool)
+
+- name: 移除禁用后的 SFTPGo 文件备份脚本
+  ansible.builtin.file:
+    path: "{{ sftpgo_backup_script_path }}"
+    state: absent
+  when: not (sftpgo_backup_enabled | bool)
+
+- name: 移除禁用后的 SFTPGo 备份日志轮转
+  ansible.builtin.file:
+    path: /etc/logrotate.d/sftpgo_backup
+    state: absent
+  when: not (sftpgo_backup_enabled | bool)
+
+- name: 配置 SFTPGo 备份日志轮转
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/sftpgo_backup
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {{ sftpgo_backup_log_file }} {
+          daily
+          rotate {{ sftpgo_backup_logrotate_keep | int }}
+          missingok
+          notifempty
+          compress
+          delaycompress
+          copytruncate
+      }
+  when: sftpgo_backup_enabled | bool

@@ -1,0 +1,21 @@
+[Unit]
+Description=Rclone mount for {{ sftpgo_gdrive_mount_remote }} at {{ sftpgo_gdrive_mount_point }}
+Documentation=https://rclone.org/commands/rclone_mount/
+After=network-online.target
+Wants=network-online.target
+AssertPathIsDirectory={{ sftpgo_gdrive_mount_point }}
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/rclone mount {{ sftpgo_gdrive_mount_remote }} {{ sftpgo_gdrive_mount_point }} --config /root/.config/rclone/rclone.conf --cache-dir {{ sftpgo_gdrive_mount_cache_dir }} --log-level INFO {{ sftpgo_gdrive_mount_options | join(' ') }}
+ExecStop=-/bin/fusermount3 -uz {{ sftpgo_gdrive_mount_point }}
+StandardOutput=journal
+StandardError=journal
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

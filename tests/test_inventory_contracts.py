@@ -118,6 +118,7 @@ def test_deploy_nodes_match_their_service_groups(inventory_context):
         "deploy_node_zammad": "zammad_nodes",
         "deploy_node_postgres": "db_postgres_nodes",
         "deploy_node_mailcow": "mail_nodes",
+        "deploy_node_sftpgo": "sftpgo_nodes",
     }
     mismatches = {}
     disabled_deploy_nodes = {

@@ -1,0 +1,107 @@
+---
+sftpgo_enabled: false
+sftpgo_image: "drakkan/sftpgo:v2.7.3"
+sftpgo_project_dir: /opt/sftpgo
+sftpgo_storage_dir: "{{ sftpgo_gdrive_mount_point }}/{{ sftpgo_gdrive_storage_subdir }}"
+sftpgo_config_dir: "{{ sftpgo_project_dir }}/config"
+sftpgo_owner_uid: 1000
+sftpgo_owner_gid: 1000
+sftpgo_owner: root
+sftpgo_group: root
+sftpgo_manage_runtime: true
+sftpgo_container_name: sftpgo
+sftpgo_docker_network: web-proxy
+
+sftpgo_bind_host: "127.0.0.1"
+sftpgo_public_http_port: 8090
+sftpgo_admin_http_port: 8091
+sftpgo_sftp_enabled: false
+sftpgo_sftp_port: 2022
+sftpgo_grace_time: 32
+
+sftpgo_domain: "files.example.com"
+sftpgo_admin_domain: ""
+sftpgo_admin_proxy_enabled: false
+sftpgo_admin_tls_provider: "cloudflare"
+sftpgo_admin_allowed_remote_ips:
+  - 127.0.0.1/32
+sftpgo_proxy_allowed:
+  - 127.0.0.1/32
+  - 172.16.0.0/12
+sftpgo_client_ip_proxy_header: X-Forwarded-For
+sftpgo_client_ip_header_depth: 0
+sftpgo_security_allowed_hosts: []
+
+sftpgo_db_host: >-
+  {{ wg_network_prefix }}.{{ (wg_servers.values() | selectattr('hostname', 'equalto', deploy_node_postgres) | first).ip_suffix }}
+sftpgo_db_port: 5432
+sftpgo_db_name: sftpgo
+sftpgo_db_user: sftpgo
+sftpgo_db_password: ""
+sftpgo_db_sslmode: 0
+sftpgo_postgres_admin_user: "{{ pg_user | default('postgres') }}"
+sftpgo_postgres_delegate_host: "{{ deploy_node_postgres | default(inventory_hostname) }}"
+sftpgo_manage_database: true
+sftpgo_run_initprovider: true
+
+sftpgo_gdrive_mount_enabled: true
+sftpgo_gdrive_mount_remote: "gdrive:"
+sftpgo_gdrive_mount_point: /mnt/gdrive
+sftpgo_gdrive_storage_subdir: SFTPGO-STORAGE
+sftpgo_gdrive_storage_remote: "{{ sftpgo_gdrive_mount_remote }}{{ sftpgo_gdrive_storage_subdir }}"
+sftpgo_gdrive_mount_cache_dir: /var/cache/rclone/gdrive
+sftpgo_gdrive_mount_service_name: rclone-gdrive
+sftpgo_gdrive_mount_options:
+  - "--allow-other"
+  - "--vfs-cache-mode=writes"
+  - "--dir-cache-time=72h"
+  - "--poll-interval=1m"
+  - "--uid={{ sftpgo_owner_uid }}"
+  - "--gid={{ sftpgo_owner_gid }}"
+  - "--umask=002"
+  - "--drive-skip-gdocs"
+
+sftpgo_signing_passphrase: ""
+sftpgo_hide_support_link: true
+sftpgo_setup_installation_code: ""
+sftpgo_public_disabled_login_methods: 85
+sftpgo_admin_disabled_login_methods: 0
+
+sftpgo_oidc_enabled: false
+sftpgo_oidc_config_url: "https://auth.example.com/oidc"
+sftpgo_oidc_redirect_base_url: "https://{{ sftpgo_domain }}"
+sftpgo_oidc_client_id: ""
+sftpgo_oidc_client_secret: ""
+sftpgo_oidc_username_field: email
+sftpgo_oidc_role_field: ""
+sftpgo_oidc_scopes:
+  - openid
+  - profile
+  - email
+sftpgo_oidc_ui_name: Logto
+
+sftpgo_retention_enabled: true
+sftpgo_retention_project_dir: "{{ sftpgo_project_dir }}/retention"
+sftpgo_retention_script_path: "{{ sftpgo_retention_project_dir }}/sftpgo_retention_cleanup.sh"
+sftpgo_retention_log_file: /var/log/sftpgo_retention_cleanup.log
+sftpgo_retention_cron_file: sftpgo_retention_cleanup
+sftpgo_retention_cron_hour: "4"
+sftpgo_retention_cron_minute: "25"
+sftpgo_defender_event_retention_days: 90
+sftpgo_defender_host_retention_days: 90
+sftpgo_shared_session_retention_days: 7
+sftpgo_active_transfer_stale_hours: 24
+sftpgo_stale_node_retention_days: 30
+sftpgo_retention_logrotate_keep: 14
+
+sftpgo_backup_enabled: false
+sftpgo_backup_root: /opt/sftpgo_backups
+sftpgo_backup_script_path: "{{ sftpgo_project_dir }}/sftpgo_backup.sh"
+sftpgo_backup_log_file: /var/log/sftpgo_backup.log
+sftpgo_backup_cron_file: sftpgo_backup
+sftpgo_backup_cron_minute: "30"
+sftpgo_backup_cron_hour: "6,18"
+sftpgo_backup_remote: "gdrive:AUTO_BACKUPS/sftpgo/{{ inventory_hostname }}"
+sftpgo_backup_keep_local: "{{ backup_keep_local | default(7) }}"
+sftpgo_backup_keep_remote: "{{ backup_keep_remote | default(14) }}"
+sftpgo_backup_logrotate_keep: 7

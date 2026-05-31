@@ -48,6 +48,7 @@
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/caddy/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/xray_under_caddy/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/logto/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/sftpgo/main.yml"
     - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/proxy_control_plane/main.yml"
   roles:
     - role: gateway/caddy
@@ -99,6 +100,18 @@
     - role: apps/logto
       tags: ['logto', 'iam', 'apps']
       when: logto_enabled | default(false) | bool
+
+- name: 部署 SFTPGo 文件门户
+  hosts: sftpgo_nodes
+  become: yes
+  vars_files:
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/vpn_wireguard/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/sftpgo/main.yml"
+    - "{{ lookup('ansible.builtin.env', 'ANSIBLE_PRIVATE_STATE_DIR', default=playbook_dir ~ '/.local') }}/role_vars/postgres/main.yml"
+  roles:
+    - role: apps/sftpgo
+      tags: ['sftpgo', 'files', 'apps']
+      when: sftpgo_enabled | default(false) | bool
 
 - name: 部署企业级邮局 Mailcow
   hosts: mail_nodes         # 👈 修复：直接使用 inventory 中定义好的组名
