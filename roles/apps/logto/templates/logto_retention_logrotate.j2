@@ -1,0 +1,9 @@
+{{ logto_retention_log_file }} {
+    daily
+    rotate {{ logto_retention_logrotate_keep | int }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 root root
+}

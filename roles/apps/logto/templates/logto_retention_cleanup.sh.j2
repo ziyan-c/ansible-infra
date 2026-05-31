@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+POSTGRES_CONTAINER="${LOGTO_POSTGRES_CONTAINER:-postgres}"
+POSTGRES_ADMIN_USER="${LOGTO_POSTGRES_ADMIN_USER:-{{ logto_postgres_admin_user | default(pg_user | default('postgres')) }}}"
+LOGTO_DB_NAME="${LOGTO_DB_NAME:-{{ logto_db_name | default('logto') }}}"
+
+AUDIT_LOG_RETENTION_DAYS="${LOGTO_AUDIT_LOG_RETENTION_DAYS:-{{ logto_audit_log_retention_days | default(90) | int }}}"
+SERVICE_LOG_RETENTION_DAYS="${LOGTO_SERVICE_LOG_RETENTION_DAYS:-{{ logto_service_log_retention_days | default(90) | int }}}"
+TRANSIENT_GRACE_DAYS="${LOGTO_EXPIRED_TRANSIENT_GRACE_DAYS:-{{ logto_expired_transient_grace_days | default(7) | int }}}"
+PASSCODE_RETENTION_DAYS="${LOGTO_PASSCODE_RETENTION_DAYS:-{{ logto_passcode_retention_days | default(7) | int }}}"
+SENTINEL_ACTIVITY_RETENTION_DAYS="${LOGTO_SENTINEL_ACTIVITY_RETENTION_DAYS:-{{ logto_sentinel_activity_retention_days | default(30) | int }}}"
+
+echo "[$(date -Is)] Starting Logto retention cleanup for database '${LOGTO_DB_NAME}' ..."
+
+if ! docker container inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then
+  echo "[$(date -Is)] ERROR: Postgres container '${POSTGRES_CONTAINER}' was not found." >&2
+  exit 1
+fi
+
+docker exec "$POSTGRES_CONTAINER" \
+  pg_isready -U "$POSTGRES_ADMIN_USER" -d "$LOGTO_DB_NAME" >/dev/null
+
+docker exec -i "$POSTGRES_CONTAINER" psql \
+  -U "$POSTGRES_ADMIN_USER" \
+  -d "$LOGTO_DB_NAME" \
+  -v ON_ERROR_STOP=1 \
+  -v audit_days="$AUDIT_LOG_RETENTION_DAYS" \
+  -v service_log_days="$SERVICE_LOG_RETENTION_DAYS" \
+  -v transient_grace_days="$TRANSIENT_GRACE_DAYS" \
+  -v passcode_days="$PASSCODE_RETENTION_DAYS" \
+  -v sentinel_days="$SENTINEL_ACTIVITY_RETENTION_DAYS" <<'SQL'
+\pset pager off
+
+CREATE OR REPLACE FUNCTION pg_temp.logto_delete_if_exists(table_name text, condition text)
+RETURNS bigint
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  target_table regclass := to_regclass(table_name);
+  deleted_count bigint := 0;
+BEGIN
+  IF target_table IS NULL THEN
+    RAISE NOTICE 'Skipping missing table %', table_name;
+    RETURN 0;
+  END IF;
+
+  EXECUTE format('DELETE FROM %s WHERE %s', target_table, condition);
+  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  RETURN deleted_count;
+END;
+$$;
+
+SELECT 'logs' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.logs',
+         format('created_at < now() - make_interval(days => %s)', :audit_days)
+       ) AS deleted_rows;
+
+SELECT 'service_logs' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.service_logs',
+         format('created_at < now() - make_interval(days => %s)', :service_log_days)
+       ) AS deleted_rows;
+
+SELECT 'oidc_model_instances' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.oidc_model_instances',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'verification_records' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.verification_records',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'one_time_tokens' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.one_time_tokens',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'subject_tokens' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.subject_tokens',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'idp_initiated_saml_sso_sessions' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.idp_initiated_saml_sso_sessions',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'saml_application_sessions' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.saml_application_sessions',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'organization_invitations' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.organization_invitations',
+         format('expires_at IS NOT NULL AND expires_at < now() - make_interval(days => %s)', :transient_grace_days)
+       ) AS deleted_rows;
+
+SELECT 'passcodes' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.passcodes',
+         format('created_at < now() - make_interval(days => %s)', :passcode_days)
+       ) AS deleted_rows;
+
+SELECT 'sentinel_activities' AS table_name,
+       pg_temp.logto_delete_if_exists(
+         'public.sentinel_activities',
+         format('created_at < now() - make_interval(days => %s)', :sentinel_days)
+       ) AS deleted_rows;
+
+SELECT format('VACUUM ANALYZE %s;', table_oid)
+FROM unnest(ARRAY[
+  to_regclass('public.logs'),
+  to_regclass('public.service_logs'),
+  to_regclass('public.oidc_model_instances'),
+  to_regclass('public.verification_records'),
+  to_regclass('public.one_time_tokens'),
+  to_regclass('public.subject_tokens'),
+  to_regclass('public.idp_initiated_saml_sso_sessions'),
+  to_regclass('public.saml_application_sessions'),
+  to_regclass('public.organization_invitations'),
+  to_regclass('public.passcodes'),
+  to_regclass('public.sentinel_activities')
+]) AS table_oid
+WHERE table_oid IS NOT NULL
+\gexec
+SQL
+
+echo "[$(date -Is)] Logto retention cleanup finished."

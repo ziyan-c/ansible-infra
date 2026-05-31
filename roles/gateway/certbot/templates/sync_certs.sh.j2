@@ -14,6 +14,11 @@ SSH_OPTS=(
   -o UserKnownHostsFile="$KNOWN_HOSTS"
 )
 
+if command -v docker >/dev/null 2>&1 && docker container inspect caddy >/dev/null 2>&1; then
+    echo "[$(date)] 正在重启本机 Caddy 以加载新证书 ..."
+    docker restart caddy || true
+fi
+
 # 2. 动态获取边缘节点列表 (从 Ansible Inventory 解析)
 SERVERS=(
 {% for host in groups['edge_nodes'] %}

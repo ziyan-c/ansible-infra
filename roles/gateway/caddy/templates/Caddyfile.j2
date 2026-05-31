@@ -28,7 +28,11 @@
 
 {% if (logto_admin_proxy_enabled | default(false) | bool) and (logto_admin_domain | default('') | length > 0) %}
 {{ logto_admin_domain }} {
+{% if (logto_admin_tls_provider | default('cloudflare')) == 'certbot' %}
+    tls /etc/letsencrypt/live/{{ base_domain }}/fullchain.pem /etc/letsencrypt/live/{{ base_domain }}/privkey.pem
+{% else %}
     tls /etc/caddy/certs/cloudflare/server.crt /etc/caddy/certs/cloudflare/server.key
+{% endif %}
 
     @logto_admin_denied {
         not remote_ip {{ logto_admin_allowed_remote_ips | default(['127.0.0.1/32']) | join(' ') }}

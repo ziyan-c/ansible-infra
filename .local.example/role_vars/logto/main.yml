@@ -6,6 +6,7 @@ logto_container_name: logto
 logto_domain: auth.example.com
 logto_admin_domain: logto-admin.example.com
 logto_admin_proxy_enabled: false
+logto_admin_tls_provider: cloudflare
 logto_admin_allowed_remote_ips:
   - "{{ wg_network_cidr }}"
 logto_bind_host: "10.66.0.2"
@@ -24,3 +25,12 @@ logto_db_password: "REPLACE_ME_32_BYTE_BASE64_LOGTO_DB_PASSWORD"
 logto_postgres_delegate_host: "{{ deploy_node_postgres }}"
 logto_secret_vault_kek: "REPLACE_ME_32_BYTE_BASE64_LOGTO_SECRET_VAULT_KEK"
 logto_run_connector_init: true
+logto_retention_enabled: true
+logto_retention_project_dir: "{{ logto_project_dir }}/retention"
+logto_retention_cron_hour: "3"
+logto_retention_cron_minute: "55"
+logto_audit_log_retention_days: 90
+logto_service_log_retention_days: 90
+logto_expired_transient_grace_days: 7
+logto_passcode_retention_days: 7
+logto_sentinel_activity_retention_days: 30

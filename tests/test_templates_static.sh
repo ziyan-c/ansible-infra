@@ -74,10 +74,13 @@ assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "auth.example.com {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.2:3001"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "logto-admin.example.com {"
+assert_contains "$render_dir/caddy/vps-a.Caddyfile" "tls /etc/letsencrypt/live/example.com/fullchain.pem /etc/letsencrypt/live/example.com/privkey.pem"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "@logto_admin_denied {"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "not remote_ip 10.66.0.0/24"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "reverse_proxy http://10.66.0.2:3002"
 assert_contains "$render_dir/caddy/vps-a.Caddyfile" "abort @logto_admin_denied"
+assert_contains "$render_dir/compose/caddy.yml" '"/etc/letsencrypt/live:/etc/letsencrypt/live:ro"'
+assert_contains "$render_dir/compose/caddy.yml" '"/etc/letsencrypt/archive:/etc/letsencrypt/archive:ro"'
 sub_route_count="$(grep -F -c "handle_path /xray/sub/*" "$render_dir/caddy/vps-a.Caddyfile")"
 if [[ "$sub_route_count" != "1" ]]; then
 	echo "expected exactly one /xray/sub route on the main domain, got $sub_route_count" >&2

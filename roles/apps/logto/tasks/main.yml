@@ -149,3 +149,77 @@
     state: present
     pull: missing
   when: logto_manage_runtime | bool
+
+- name: 创建 Logto retention 目录
+  ansible.builtin.file:
+    path: "{{ logto_retention_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: logto_retention_enabled | bool
+
+- name: 下发 Logto retention 清理脚本到 Logto 节点
+  ansible.builtin.template:
+    src: logto_retention_cleanup.sh.j2
+    dest: "{{ logto_retention_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  when: logto_retention_enabled | bool
+
+- name: 创建 Logto retention 执行目录
+  ansible.builtin.file:
+    path: "{{ logto_retention_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  run_once: true
+  when: logto_retention_enabled | bool
+
+- name: 下发 Logto retention 清理脚本到 Postgres 节点
+  ansible.builtin.template:
+    src: logto_retention_cleanup.sh.j2
+    dest: "{{ logto_retention_script_path }}"
+    owner: root
+    group: root
+    mode: "0700"
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  run_once: true
+  when: logto_retention_enabled | bool
+
+- name: 配置 Logto retention 定时任务
+  ansible.builtin.cron:
+    name: "Logto retention cleanup"
+    cron_file: "{{ logto_retention_cron_file }}"
+    user: root
+    minute: "{{ logto_retention_cron_minute }}"
+    hour: "{{ logto_retention_cron_hour }}"
+    job: "{{ logto_retention_script_path }} >> {{ logto_retention_log_file }} 2>&1"
+    state: present
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  run_once: true
+  when: logto_retention_enabled | bool
+
+- name: 移除 Logto retention 定时任务
+  ansible.builtin.cron:
+    name: "Logto retention cleanup"
+    cron_file: "{{ logto_retention_cron_file }}"
+    user: root
+    state: absent
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  run_once: true
+  when: not (logto_retention_enabled | bool)
+
+- name: 配置 Logto retention 日志轮转
+  ansible.builtin.template:
+    src: logto_retention_logrotate.j2
+    dest: /etc/logrotate.d/logto_retention_cleanup
+    owner: root
+    group: root
+    mode: "0644"
+  delegate_to: "{{ logto_postgres_delegate_host }}"
+  run_once: true
+  when: logto_retention_enabled | bool

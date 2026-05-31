@@ -31,6 +31,24 @@ def test_certbot_sync_only_treats_confirmed_missing_edge_certs_as_missing():
     assert "ignore_unreachable: true" in tasks
 
 
+def test_logto_retention_uses_postgres_delegate_and_cron_file():
+    tasks = read_role_file("roles/apps/logto/tasks/main.yml")
+    defaults = read_role_file("roles/apps/logto/defaults/main.yml")
+    script = read_role_file("roles/apps/logto/templates/logto_retention_cleanup.sh.j2")
+
+    assert "logto_retention_enabled: true" in defaults
+    assert 'logto_retention_project_dir: "{{ logto_project_dir }}/retention"' in defaults
+    assert 'logto_retention_cron_minute: "55"' in defaults
+    assert "logto_sentinel_activity_retention_days: 30" in defaults
+    assert "delegate_to: \"{{ logto_postgres_delegate_host }}\"" in tasks
+    assert "run_once: true" in tasks
+    assert "cron_file: \"{{ logto_retention_cron_file }}\"" in tasks
+    assert "public.passcodes" in script
+    assert ":passcode_days" in script
+    assert "public.application_secrets" not in script
+    assert "public.personal_access_tokens" not in script
+
+
 def test_rclone_config_update_requires_explicit_force_flag():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")

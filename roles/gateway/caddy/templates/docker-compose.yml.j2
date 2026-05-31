@@ -1,3 +1,9 @@
+{% set logto_admin_uses_certbot_tls = (
+  (logto_admin_proxy_enabled | default(false) | bool) and
+  (logto_admin_domain | default('') | length > 0) and
+  ((logto_admin_tls_provider | default('cloudflare')) == 'certbot') and
+  (inventory_hostname == (deploy_node_logto_gateway | default('')))
+) %}
 services:
   caddy:
     image: "{{ caddy_image }}"
@@ -11,6 +17,10 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       # 直接挂载本目录下的 certs 文件夹
       - ./certs:/etc/caddy/certs:ro
+{% if logto_admin_uses_certbot_tls %}
+      - "{{ caddy_letsencrypt_live_dir | default('/etc/letsencrypt/live') }}:/etc/letsencrypt/live:ro"
+      - "{{ caddy_letsencrypt_archive_dir | default('/etc/letsencrypt/archive') }}:/etc/letsencrypt/archive:ro"
+{% endif %}
       - ./data:/data
       - ./config:/config
       - ./site:/usr/share/caddy

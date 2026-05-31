@@ -30,3 +30,17 @@ logto_secret_vault_kek: ""
 logto_run_connector_init: true
 logto_run_seed: true
 logto_run_alteration: true
+
+logto_retention_enabled: true
+logto_retention_project_dir: "{{ logto_project_dir }}/retention"
+logto_retention_script_path: "{{ logto_retention_project_dir }}/logto_retention_cleanup.sh"
+logto_retention_log_file: /var/log/logto_retention_cleanup.log
+logto_retention_cron_file: logto_retention_cleanup
+logto_retention_cron_hour: "3"
+logto_retention_cron_minute: "55"
+logto_audit_log_retention_days: 90
+logto_service_log_retention_days: 90
+logto_expired_transient_grace_days: 7
+logto_passcode_retention_days: 7
+logto_sentinel_activity_retention_days: 30
+logto_retention_logrotate_keep: 14

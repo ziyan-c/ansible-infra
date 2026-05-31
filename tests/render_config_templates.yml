@@ -31,6 +31,7 @@
     logto_domain: auth.example.com
     logto_admin_domain: logto-admin.example.com
     logto_admin_proxy_enabled: true
+    logto_admin_tls_provider: certbot
     logto_admin_allowed_remote_ips:
       - 10.66.0.0/24
     logto_bind_host: "10.66.0.2"

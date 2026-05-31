@@ -5,6 +5,7 @@
   connection: local
   vars_files:
     - ../.local.example/role_vars/certbot/main.yml
+    - ../.local.example/role_vars/logto/main.yml
     - ../.local.example/role_vars/mailcow/main.yml
     - ../.local.example/role_vars/postgres/main.yml
     - ../.local.example/role_vars/zammad/main.yml
@@ -21,6 +22,8 @@
         dest: mailcow_backup.sh
       - src: "{{ repo_root }}/roles/apps/postgres/templates/pg_backup_all.sh.j2"
         dest: pg_backup_all.sh
+      - src: "{{ repo_root }}/roles/apps/logto/templates/logto_retention_cleanup.sh.j2"
+        dest: logto_retention_cleanup.sh
       - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_sync.sh.j2"
         dest: zammad_sync.sh
       - src: "{{ repo_root }}/roles/apps/zammad/templates/zammad_backup_config.j2"

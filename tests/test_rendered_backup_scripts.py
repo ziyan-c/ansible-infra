@@ -651,3 +651,49 @@ def test_certbot_sync_stops_when_rsync_fails(script_harness):
     assert "root@vps-a.example.com" in ssh_log
     assert "docker restart" not in ssh_log
     assert "root@vps-b.example.com" not in ssh_log
+
+
+def test_logto_retention_cleanup_targets_only_log_and_transient_tables(
+    script_harness,
+):
+    h = script_harness
+    h.write_executable(
+        "docker",
+        """\
+        #!/usr/bin/env bash
+        set -euo pipefail
+        echo "$*" >> "$TEST_LOG_DIR/docker.log"
+        if [ "${1:-}" = "container" ] && [ "${2:-}" = "inspect" ]; then
+          exit 0
+        fi
+        if [ "${1:-}" = "exec" ] && [[ "$*" == *" pg_isready "* ]]; then
+          exit 0
+        fi
+        if [ "${1:-}" = "exec" ] && [[ "$*" == *" psql "* ]]; then
+          cat > "$TEST_LOG_DIR/logto-retention.sql"
+          exit 0
+        fi
+        exit 0
+        """,
+    )
+
+    result = h.run_script("logto_retention_cleanup.sh")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    docker_log = (h.log_dir / "docker.log").read_text(encoding="utf-8")
+    sql = (h.log_dir / "logto-retention.sql").read_text(encoding="utf-8")
+
+    assert "container inspect postgres" in docker_log
+    assert "pg_isready -U postgres -d logto" in docker_log
+    assert "public.logs" in sql
+    assert "public.service_logs" in sql
+    assert "public.oidc_model_instances" in sql
+    assert "public.verification_records" in sql
+    assert "public.passcodes" in sql
+    assert "created_at < now() - make_interval(days => %s)', :passcode_days" in sql
+    assert "public.sentinel_activities" in sql
+    assert "created_at < now() - make_interval(days => %s)', :sentinel_days" in sql
+    assert "VACUUM ANALYZE %s" in sql
+    assert "public.application_secrets" not in sql
+    assert "public.personal_access_tokens" not in sql
+    assert "public.secrets" not in sql
