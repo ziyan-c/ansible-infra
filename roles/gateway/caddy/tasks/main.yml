@@ -75,23 +75,30 @@
 - name: 下发 Caddy 自动备份脚本
   template:
     src: caddy_backup.sh.j2
-    dest: /opt/caddy/caddy_backup.sh
+    dest: "{{ caddy_backup_script_path }}"
     owner: root
     group: root
     mode: '0700'
 
+- name: 移除旧的 Caddy root crontab 备份任务
+  ansible.builtin.cron:
+    name: "Caddy Full Backup"
+    state: absent
+
 - name: 设置定时任务 (每天凌晨 5 点, 17 点 执行 Caddy 备份)
   ansible.builtin.cron:
     name: "Caddy Full Backup"
-    minute: "0"
-    hour: "5,17"  # 👈 错开时间：Postgres(3点), Mailcow(4点), Caddy(5点)
-    job: "/opt/caddy/caddy_backup.sh >> /var/log/caddy_backup.log 2>&1"
+    cron_file: "{{ caddy_backup_cron_file }}"
+    user: root
+    minute: "{{ caddy_backup_cron_minute }}"
+    hour: "{{ caddy_backup_cron_hour }}"
+    job: "{{ caddy_backup_script_path }} >> {{ caddy_backup_log_file }} 2>&1"
 
 - name: 配置 Caddy 备份日志轮转
   copy:
     dest: /etc/logrotate.d/caddy_backup
     content: |
-      /var/log/caddy_backup.log {
+      {{ caddy_backup_log_file }} {
           daily
           rotate 7
           missingok

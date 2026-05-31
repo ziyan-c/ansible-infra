@@ -1,3 +1,8 @@
 ---
 mailcow_config_template_src: "{{ private_state_dir | default(playbook_dir ~ '/.local') }}/role_vars/mailcow/mailcow.conf.j2"
 mailcow_version: master
+mailcow_backup_script_path: /opt/mailcow-dockerized/mailcow_backup.sh
+mailcow_backup_log_file: /var/log/mailcow_backup.log
+mailcow_backup_cron_file: mailcow_backup
+mailcow_backup_cron_minute: "0"
+mailcow_backup_cron_hour: "4,16"

@@ -37,24 +37,31 @@
 - name: 下发全库备份脚本
   template:
     src: pg_backup_all.sh.j2
-    dest: /opt/postgres/pg_backup_all.sh
+    dest: "{{ postgres_backup_script_path }}"
     owner: root
     group: root
     mode: '0700'
   no_log: true
 
+- name: 移除旧的 PostgreSQL root crontab 备份任务
+  ansible.builtin.cron:
+    name: "Postgres Full Instance Backup"
+    state: absent
+
 - name: 设置定时任务 (每天两次全量备份 - 03:00 和 15:00)
   ansible.builtin.cron:
     name: "Postgres Full Instance Backup"
-    minute: "0"
-    hour: "3,15"  # 这里的逗号表示在这两个小时分别执行一次
-    job: "/opt/postgres/pg_backup_all.sh >> /var/log/pg_backup_all.log 2>&1"
+    cron_file: "{{ postgres_backup_cron_file }}"
+    user: root
+    minute: "{{ postgres_backup_cron_minute }}"
+    hour: "{{ postgres_backup_cron_hour }}"
+    job: "{{ postgres_backup_script_path }} >> {{ postgres_backup_log_file }} 2>&1"
 
 - name: 配置 PostgreSQL 备份日志轮转
   copy:
     dest: /etc/logrotate.d/pg_backup
     content: |
-      /var/log/pg_backup_all.log {
+      {{ postgres_backup_log_file }} {
           daily
           rotate 7
           missingok

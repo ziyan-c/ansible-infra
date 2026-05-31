@@ -49,23 +49,30 @@
 - name: 下发 Mailcow 自动备份脚本
   template:
     src: mailcow_backup.sh.j2
-    dest: /opt/mailcow-dockerized/mailcow_backup.sh
+    dest: "{{ mailcow_backup_script_path }}"
     owner: root
     group: root
     mode: '0700'
 
+- name: 移除旧的 Mailcow root crontab 备份任务
+  ansible.builtin.cron:
+    name: "Mailcow Full Backup"
+    state: absent
+
 - name: 设置定时任务 (每天凌晨 4 点和下午 16 点执行 Mailcow 备份)
   ansible.builtin.cron:
     name: "Mailcow Full Backup"
-    minute: "0"
-    hour: "4,16"  # 👈 必须是英文逗号！
-    job: "/opt/mailcow-dockerized/mailcow_backup.sh >> /var/log/mailcow_backup.log 2>&1"
+    cron_file: "{{ mailcow_backup_cron_file }}"
+    user: root
+    minute: "{{ mailcow_backup_cron_minute }}"
+    hour: "{{ mailcow_backup_cron_hour }}"
+    job: "{{ mailcow_backup_script_path }} >> {{ mailcow_backup_log_file }} 2>&1"
 
 - name: 配置 Mailcow 备份日志轮转
   copy:
     dest: /etc/logrotate.d/mailcow_backup
     content: |
-      /var/log/mailcow_backup.log {
+      {{ mailcow_backup_log_file }} {
           daily
           rotate 7
           missingok

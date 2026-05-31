@@ -180,7 +180,7 @@
 - name: 下发 Zammad 解耦版备份脚本
   template:
     src: zammad_sync.sh.j2
-    dest: /opt/zammad/zammad_sync.sh
+    dest: "{{ zammad_sync_script_path }}"
     owner: root
     group: root
     mode: '0700'
@@ -195,22 +195,36 @@
     access_time: preserve
     modification_time: preserve
   loop:
-    - /var/log/zammad_backup_local.log
-    - /var/log/zammad_backup_cloud.log
+    - "{{ zammad_backup_local_log_file }}"
+    - "{{ zammad_backup_cloud_log_file }}"
+
+- name: 移除旧的 Zammad root crontab 本地备份任务
+  ansible.builtin.cron:
+    name: "Zammad Local Backup"
+    state: absent
+
+- name: 移除旧的 Zammad root crontab 云端同步任务
+  ansible.builtin.cron:
+    name: "Zammad Cloud Sync"
+    state: absent
 
 - name: 设置定时任务 (每天早 06:00 触发 Zammad 本地备份)
   ansible.builtin.cron:
     name: "Zammad Local Backup"
-    minute: "0"
-    hour: "6"
-    job: "/opt/zammad/zammad_sync.sh local >> /var/log/zammad_backup_local.log 2>&1"
+    cron_file: "{{ zammad_backup_cron_file }}"
+    user: root
+    minute: "{{ zammad_backup_cron_minute }}"
+    hour: "{{ zammad_backup_local_cron_hour }}"
+    job: "{{ zammad_sync_script_path }} local >> {{ zammad_backup_local_log_file }} 2>&1"
 
 - name: 设置定时任务 (每天晚 18:00 触发 Zammad 云端同步)
   ansible.builtin.cron:
     name: "Zammad Cloud Sync"
-    minute: "0"
-    hour: "18"
-    job: "/opt/zammad/zammad_sync.sh cloud >> /var/log/zammad_backup_cloud.log 2>&1"
+    cron_file: "{{ zammad_backup_cron_file }}"
+    user: root
+    minute: "{{ zammad_backup_cron_minute }}"
+    hour: "{{ zammad_backup_cloud_cron_hour }}"
+    job: "{{ zammad_sync_script_path }} cloud >> {{ zammad_backup_cloud_log_file }} 2>&1"
 
 - name: 配置 Zammad 备份日志轮转 (包含两个日志)
   ansible.builtin.copy:
@@ -219,8 +233,8 @@
     group: root
     mode: '0644'
     content: |
-      /var/log/zammad_backup_local.log
-      /var/log/zammad_backup_cloud.log {
+      {{ zammad_backup_local_log_file }}
+      {{ zammad_backup_cloud_log_file }} {
           daily
           rotate 7
           missingok

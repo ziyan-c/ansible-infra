@@ -1,3 +1,8 @@
 ---
 pgvector_image: "pgvector/pgvector:0.8.2-pg18-trixie"
 postgres_container_pgdata: "/var/lib/postgresql/18/docker"
+postgres_backup_script_path: /opt/postgres/pg_backup_all.sh
+postgres_backup_log_file: /var/log/pg_backup_all.log
+postgres_backup_cron_file: postgres_backup
+postgres_backup_cron_minute: "0"
+postgres_backup_cron_hour: "3,15"

@@ -18,3 +18,8 @@ logto_core_port: 3001
 logto_admin_port: 3002
 caddy_letsencrypt_live_dir: /etc/letsencrypt/live
 caddy_letsencrypt_archive_dir: /etc/letsencrypt/archive
+caddy_backup_script_path: /opt/caddy/caddy_backup.sh
+caddy_backup_log_file: /var/log/caddy_backup.log
+caddy_backup_cron_file: caddy_backup
+caddy_backup_cron_minute: "0"
+caddy_backup_cron_hour: "5,17"

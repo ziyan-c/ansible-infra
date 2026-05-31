@@ -134,29 +134,43 @@ def test_zammad_init_runs_separately_when_database_needs_it():
 
 def test_backup_cron_schedules_are_declared_and_staggered():
     postgres = read_role_file("roles/apps/postgres/tasks/main.yml")
+    postgres_defaults = read_role_file("roles/apps/postgres/defaults/main.yml")
     mailcow = read_role_file("roles/apps/mailcow/tasks/main.yml")
+    mailcow_defaults = read_role_file("roles/apps/mailcow/defaults/main.yml")
     caddy = read_role_file("roles/gateway/caddy/tasks/main.yml")
+    caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     zammad = read_role_file("roles/apps/zammad/tasks/main.yml")
+    zammad_defaults = read_role_file("roles/apps/zammad/defaults/main.yml")
 
     assert 'name: "Postgres Full Instance Backup"' in postgres
-    assert 'hour: "3,15"' in postgres
-    assert "/opt/postgres/pg_backup_all.sh" in postgres
+    assert 'postgres_backup_cron_hour: "3,15"' in postgres_defaults
+    assert "cron_file: \"{{ postgres_backup_cron_file }}\"" in postgres
+    assert "user: root" in postgres
+    assert "postgres_backup_script_path: /opt/postgres/pg_backup_all.sh" in postgres_defaults
     assert "/etc/logrotate.d/pg_backup" in postgres
 
     assert 'name: "Mailcow Full Backup"' in mailcow
-    assert 'hour: "4,16"' in mailcow
-    assert "/opt/mailcow-dockerized/mailcow_backup.sh" in mailcow
+    assert 'mailcow_backup_cron_hour: "4,16"' in mailcow_defaults
+    assert "cron_file: \"{{ mailcow_backup_cron_file }}\"" in mailcow
+    assert "state: absent" in mailcow
+    assert "user: root" in mailcow
+    assert "mailcow_backup_script_path: /opt/mailcow-dockerized/mailcow_backup.sh" in mailcow_defaults
     assert "/etc/logrotate.d/mailcow_backup" in mailcow
 
     assert 'name: "Caddy Full Backup"' in caddy
-    assert 'hour: "5,17"' in caddy
-    assert "/opt/caddy/caddy_backup.sh" in caddy
+    assert 'caddy_backup_cron_hour: "5,17"' in caddy_defaults
+    assert "cron_file: \"{{ caddy_backup_cron_file }}\"" in caddy
+    assert "user: root" in caddy
+    assert "caddy_backup_script_path: /opt/caddy/caddy_backup.sh" in caddy_defaults
     assert "/etc/logrotate.d/caddy_backup" in caddy
 
     assert 'name: "Zammad Local Backup"' in zammad
-    assert 'hour: "6"' in zammad
+    assert 'zammad_backup_local_cron_hour: "6"' in zammad_defaults
     assert 'name: "Zammad Cloud Sync"' in zammad
-    assert 'hour: "18"' in zammad
+    assert 'zammad_backup_cloud_cron_hour: "18"' in zammad_defaults
+    assert "cron_file: \"{{ zammad_backup_cron_file }}\"" in zammad
+    assert "user: root" in zammad
+    assert "zammad_sync_script_path: /opt/zammad/zammad_sync.sh" in zammad_defaults
     assert "/etc/logrotate.d/zammad_sync" in zammad
     assert "src: zammad_backup_config.j2" in zammad
     assert "dest: /opt/zammad/backup_config" in zammad
