@@ -18,8 +18,8 @@ PublicKey = {{ node.pub }}
 PresharedKey = {{ psk }}
 {% endif %}
 AllowedIPs = {{ wg_restricted_network_prefix }}.{{ node.ip_suffix }}/32
-{% if (node.persistent_keepalive | default(25) | int) > 0 %}
-PersistentKeepalive = {{ node.persistent_keepalive | default(25) }}
+{% if (node.hub_persistent_keepalive | default(0) | int) > 0 %}
+PersistentKeepalive = {{ node.hub_persistent_keepalive | int }}
 {% endif %}
 
 {% endfor %}

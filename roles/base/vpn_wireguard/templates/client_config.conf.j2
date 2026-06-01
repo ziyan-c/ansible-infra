@@ -18,4 +18,6 @@ PresharedKey = {{ psk }}
 Endpoint = {{ item[1].value.endpoint }}:{{ wg_port }}
 # 允许所有流量通过该服务器 (全局代理)
 AllowedIPs = 0.0.0.0/0, ::/0
-PersistentKeepalive = 25
+{% if (item[0].value.persistent_keepalive | default(25) | int) > 0 %}
+PersistentKeepalive = {{ item[0].value.persistent_keepalive | default(25) | int }}
+{% endif %}

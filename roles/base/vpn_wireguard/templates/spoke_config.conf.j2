@@ -25,4 +25,6 @@ PresharedKey = {{ psk }}
 Endpoint = {{ hub.endpoint }}:{{ wg_port }}
 # 只把 WireGuard 内网发给 hub；不默认代理公网流量。
 AllowedIPs = {{ item.value.allowed_ips | default(wg_network_cidr) }}
-PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) }}
+{% if (item.value.persistent_keepalive | default(25) | int) > 0 %}
+PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) | int }}
+{% endif %}

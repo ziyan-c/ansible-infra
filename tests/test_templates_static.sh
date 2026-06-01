@@ -124,6 +124,10 @@ assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_VPS_A_VPS_B"
 assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
+if grep -F "PersistentKeepalive" "$render_dir/wireguard/wg0.conf" >/dev/null; then
+	echo "public WireGuard server peers must not render keepalive by default" >&2
+	exit 1
+fi
 if grep -F "# Spoke:" "$render_dir/wireguard/wg0.conf" >/dev/null; then
 	echo "non-hub WireGuard config must not render an empty spoke section" >&2
 	exit 1
@@ -136,6 +140,10 @@ assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
 assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
 	"AllowedIPs = 10.66.0.1/32, 10.66.14.0/24"
+if grep -F "PersistentKeepalive" "$render_dir/wireguard/vps-b.wg0.conf" >/dev/null; then
+	echo "WireGuard hubs must not render keepalive for NAT spokes by default" >&2
+	exit 1
+fi
 assert_contains "$render_dir/wireguard/wg-restricted.conf" \
 	"Address = 10.66.14.1/24"
 assert_contains "$render_dir/wireguard/wg-restricted.conf" \
@@ -146,18 +154,26 @@ assert_contains "$render_dir/wireguard/wg-restricted.conf" \
 	"# Restricted node: restricted_a"
 assert_contains "$render_dir/wireguard/wg-restricted.conf" \
 	"AllowedIPs = 10.66.14.10/32"
+if grep -F "PersistentKeepalive" "$render_dir/wireguard/wg-restricted.conf" >/dev/null; then
+	echo "restricted hubs must not render keepalive for NAT nodes by default" >&2
+	exit 1
+fi
 assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
 	"Endpoint = vps-a.example.com:51821"
 assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
 	"AllowedIPs = 10.66.0.0/24, 10.66.14.1/32"
 assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
 	"PresharedKey = REPLACE_ME_WG_RESTRICTED_PSK_RESTRICTED_A_VPS_A"
+assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
+	"PersistentKeepalive = 25"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"Endpoint = vps-a.example.com:51820"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_PHONE_VPS_A"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"AllowedIPs = 0.0.0.0/0, ::/0"
+assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
+	"PersistentKeepalive = 25"
 assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
 	"Address = 10.66.0.6/24"
 assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
@@ -166,6 +182,8 @@ assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
 	"AllowedIPs = 10.66.0.0/24"
 assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
+assert_contains "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" \
+	"PersistentKeepalive = 25"
 if grep -F "DNS =" "$render_dir/wireguard/spoke_homelab_via_vps_b.conf" >/dev/null; then
 	echo "homelab spoke config must not override DNS unless explicitly configured" >&2
 	exit 1

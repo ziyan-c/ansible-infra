@@ -173,6 +173,7 @@ wg_restricted_nodes:
     ip_suffix: 10
     pub: "RESTRICTED_A_PUBLIC_KEY"
     priv: "RESTRICTED_A_PRIVATE_KEY"
+    persistent_keepalive: 25
 
 wg_restricted_preshared_keys:
   node_pairs:

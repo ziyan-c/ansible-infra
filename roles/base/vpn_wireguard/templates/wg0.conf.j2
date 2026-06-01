@@ -61,7 +61,9 @@ Endpoint = {{ peer.endpoint }}:{{ wg_port }}
 {% endif %}
 # 核心逻辑：服务器之间只允许内网 IP 互通，不互相代理外网流量
 AllowedIPs = {{ peer_allowed_ips.values | join(', ') }}  # <-- ✅ 改成这样
-PersistentKeepalive = 25
+{% if (peer.persistent_keepalive | default(0) | int) > 0 %}
+PersistentKeepalive = {{ peer.persistent_keepalive | int }}
+{% endif %}
 {% endif %}
 {% endfor %}
 
@@ -86,8 +88,8 @@ PresharedKey = {{ psk }}
 Endpoint = {{ spoke.endpoint }}:{{ spoke.port | default(wg_port) }}
 {% endif %}
 AllowedIPs = {{ wg_network_prefix }}.{{ spoke.ip_suffix }}/32
-{% if (spoke.persistent_keepalive | default(25) | int) > 0 %}
-PersistentKeepalive = {{ spoke.persistent_keepalive | default(25) }}
+{% if (spoke.hub_persistent_keepalive | default(0) | int) > 0 %}
+PersistentKeepalive = {{ spoke.hub_persistent_keepalive | int }}
 {% endif %}
 {% endif %}
 {% endfor %}

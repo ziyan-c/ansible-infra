@@ -18,5 +18,6 @@ Endpoint = {{ hub.endpoint }}:{{ wg_restricted_port }}
 # Route replies for trusted WG clients through the hub, but the hub firewall blocks
 # restricted nodes from initiating new connections back into the trusted network.
 AllowedIPs = {{ wg_network_cidr }}, {{ wg_restricted_network_prefix }}.{{ wg_restricted_hub_ip_suffix }}/32
-PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) }}
-
+{% if (item.value.persistent_keepalive | default(25) | int) > 0 %}
+PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) | int }}
+{% endif %}

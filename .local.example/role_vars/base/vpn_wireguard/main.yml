@@ -23,6 +23,7 @@ wg_clients:
     ip_suffix: 101
     pub: "REPLACE_ME_CLIENT_PUBLIC_KEY"
     priv: "REPLACE_ME_CLIENT_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+    persistent_keepalive: 25
 
 wg_spoke_nodes:
   # Roaming node without a stable public endpoint. It is not managed by Ansible;
