@@ -1,7 +1,7 @@
 ---
 caddy_image: "caddy:2.11.2"
-caddy_cloudflare_cert_src: "{{ private_state_dir | default(playbook_dir ~ '/.local') }}/role_vars/caddy/cf-certs/server.crt"
-caddy_cloudflare_key_src: "{{ private_state_dir | default(playbook_dir ~ '/.local') }}/role_vars/caddy/cf-certs/server.key"
+caddy_cloudflare_cert_src: "{{ ansible_local_role_vars_dir | default(playbook_dir ~ '/.local/role_vars') }}/gateway/caddy/cf-certs/server.crt"
+caddy_cloudflare_key_src: "{{ ansible_local_role_vars_dir | default(playbook_dir ~ '/.local/role_vars') }}/gateway/caddy/cf-certs/server.key"
 proxy_control_plane_subscription_proxy_enabled: false
 proxy_control_plane_subscription_proxy_upstream: "http://127.0.0.1:9710"
 proxy_control_plane_subscription_public_path: /xray/sub

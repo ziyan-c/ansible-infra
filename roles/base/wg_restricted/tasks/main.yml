@@ -1,0 +1,147 @@
+---
+- name: 校验 wg-restricted hub 存在
+  ansible.builtin.assert:
+    that:
+      - wg_restricted_hub in wg_servers
+    fail_msg: "wg_restricted_hub must name an existing wg_servers entry."
+  no_log: true
+  when: wg_restricted_enabled | bool
+
+- name: 解析 wg-restricted hub 主机名
+  ansible.builtin.set_fact:
+    wg_restricted_hub_host: "{{ wg_servers[wg_restricted_hub].hostname }}"
+  when: wg_restricted_enabled | bool
+
+- name: 校验 wg-restricted 基础配置
+  ansible.builtin.assert:
+    that:
+      - wg_restricted_hub_pub | length > 0
+      - wg_restricted_hub_priv | length > 0
+      - wg_restricted_nodes | length > 0
+      - wg_restricted_network_cidr | length > 0
+      - wg_restricted_network_prefix | length > 0
+    fail_msg: >-
+      wg_restricted requires a public hub key, private hub key, at least one
+      restricted node, and a hub name present in wg_servers.
+  no_log: true
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 校验 wg-restricted 节点配置
+  ansible.builtin.assert:
+    that:
+      - item.value.ip_suffix is defined
+      - item.value.pub | default('') | length > 0
+      - (wg_restricted_preshared_keys.node_pairs | default({}))[item.key ~ '__' ~ wg_restricted_hub] | default('') | length > 0
+    fail_msg: >-
+      Each wg_restricted_nodes entry must define ip_suffix and pub, and each
+      restricted node must have a preshared key named node__hub.
+  no_log: true
+  loop: "{{ wg_restricted_nodes | dict2items }}"
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 安装 wg-restricted 依赖
+  ansible.builtin.apt:
+    name:
+      - wireguard
+      - wireguard-tools
+      - iptables
+    state: present
+    update_cache: yes
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 开启 IPv4 转发供 wg-restricted hub 路由返回流量
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: yes
+    state: present
+    reload: yes
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 确保 WireGuard 配置目录存在
+  ansible.builtin.file:
+    path: /etc/wireguard
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 下发 wg-restricted 防火墙脚本
+  ansible.builtin.template:
+    src: wg-restricted-firewall.sh.j2
+    dest: "{{ wg_restricted_firewall_script_path }}"
+    owner: root
+    group: root
+    mode: "0750"
+  notify: Restart wg-restricted
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 下发 wg-restricted hub 配置
+  ansible.builtin.template:
+    src: wg-restricted.conf.j2
+    dest: "/etc/wireguard/{{ wg_restricted_interface }}.conf"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wg-restricted
+  no_log: true
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 启动并设置开机自启 wg-restricted
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_restricted_interface }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 在防火墙中放行 wg-restricted UDP 端口
+  ansible.posix.firewalld:
+    port: "{{ wg_restricted_port }}/udp"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when:
+    - wg_restricted_enabled | bool
+    - inventory_hostname == wg_restricted_hub_host
+
+- name: 创建本地 wg-restricted 节点配置目录
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/.local/wg-restricted/{{ item.key }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: no
+  run_once: true
+  no_log: true
+  loop: "{{ wg_restricted_nodes | dict2items }}"
+  when: wg_restricted_enabled | bool
+
+- name: 生成本地 wg-restricted 节点配置
+  ansible.builtin.template:
+    src: restricted_node_config.conf.j2
+    dest: "{{ playbook_dir }}/.local/wg-restricted/{{ item.key }}/{{ item.key }}_via_{{ wg_restricted_hub }}.conf"
+    mode: "0600"
+  delegate_to: localhost
+  become: no
+  run_once: true
+  no_log: true
+  loop: "{{ wg_restricted_nodes | dict2items }}"
+  when: wg_restricted_enabled | bool

@@ -7,3 +7,4 @@ pg_admin_password: "REPLACE_ME_POSTGRES_ADMIN_PASSWORD"
 pg_db_name: app
 pg_data_dir: /opt/postgres/data
 pg_custom_dir: /opt/postgres/custom_data
+deploy_node_postgres: vps-b.example.com

@@ -1,0 +1,9 @@
+---
+caddy_image: "caddy:2.11.2"
+caddy_basic_auth_hash: "admin $2a$14$REPLACE_WITH_CADDY_HASH"
+caddy_cloudflare_cert_src: "{{ ansible_local_role_vars_dir }}/gateway/caddy/cf-certs/server.crt"
+caddy_cloudflare_key_src: "{{ ansible_local_role_vars_dir }}/gateway/caddy/cf-certs/server.key"
+base_domain: example.com
+deploy_node_xray_under_caddy: vps-a.example.com
+deploy_node_logto_gateway: vps-a.example.com
+deploy_node_sftpgo_gateway: vps-a.example.com

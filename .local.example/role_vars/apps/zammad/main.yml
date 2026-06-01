@@ -1,0 +1,4 @@
+---
+zammad_env_template_src: "{{ ansible_local_role_vars_dir }}/apps/zammad/zammad.env.j2"
+zammad_enabled: true
+deploy_node_zammad: vps-b.example.com

@@ -1,3 +1,0 @@
----
-mailcow_version: "REPLACE_WITH_MAILCOW_GIT_TAG"
-mailcow_config_template_src: "{{ private_state_dir }}/role_vars/mailcow/mailcow.conf.j2"

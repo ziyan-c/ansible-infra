@@ -43,7 +43,8 @@ vault_password_file = .local/vault_password
 运行 playbook 前，确保 `.local/` 里已经包含私有 inventory、`group_vars/all.yml`
 里的共享变量，以及 `.local/role_vars/<role>/` 下的 per-role 私有文件，例如
 SSH key、WireGuard key、Cloudflare token、数据库密码、Rclone 配置和应用
-`.env` 模板。
+`.env` 模板。`group_vars/all.yml` 里设置 `ansible_local_role_vars_dir`，
+`site.yml` 会在每个 play 前递归加载这个目录里的所有 `.yml` / `.yaml` 文件。
 
 ## 常用命令
 
@@ -140,6 +141,48 @@ Ansible 会更新 VPS 端配置：非 hub 节点会把 `10.66.0.6/32` 路由到�
 避免把 homelab 本机的局域网域名解析、路由器域名或 NAS 名称解析改坏；只有你
 明确在 spoke 上设置 `dns:` 时才会让 `wg-quick` 接管 DNS。
 
+## WireGuard 受限被管理节点
+
+`wg-restricted` 是第二张 WireGuard 网，给“只能被 trusted 内网访问，不能主动访问
+trusted 内网或其他受限节点”的机器使用：
+
+```text
+wg0            10.13.13.0/24  trusted mesh
+wg-restricted 10.13.14.0/24  受限被管理节点
+```
+
+它也是 hub-spoke 结构。restricted 节点之间不直接 peer，所有流量都经过 hub。hub
+允许 `wg0 -> wg-restricted` 全部访问；只允许 `wg-restricted -> wg0` 的
+established/related 返回流量；拒绝 restricted 节点主动访问 trusted、hub 本机服务、
+其他 restricted 节点，以及通过 hub 出公网。
+
+配置放在 `.local/role_vars/base/wg_restricted/main.yml`：
+
+```yaml
+wg_restricted_enabled: true
+wg_restricted_hub: la_us
+wg_restricted_network_cidr: "10.13.14.0/24"
+wg_restricted_network_prefix: "10.13.14"
+
+wg_restricted_nodes:
+  restricted_a:
+    ip_suffix: 10
+    pub: "RESTRICTED_A_PUBLIC_KEY"
+    priv: "RESTRICTED_A_PRIVATE_KEY"
+
+wg_restricted_preshared_keys:
+  node_pairs:
+    restricted_a__la_us: "RESTRICTED_A_LA_US_PSK"
+```
+
+替换密钥后运行：
+
+```bash
+ansible-playbook site.yml --tags wg-restricted
+```
+
+restricted 节点的手动接入配置会生成到 `.local/wg-restricted/`。
+
 ## 私有状态备份
 
 创建或刷新 `.local` 的加密备份包：
@@ -170,10 +213,10 @@ proxy_control_plane_enabled: true
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"
+proxy_control_plane_env_file_src: "{{ ansible_local_role_vars_dir }}/apps/proxy_control_plane/app.env"
 ```
 
-把 `.local/role_vars/proxy_control_plane/app.env` 创建成指向真实
+把 `.local/role_vars/apps/proxy_control_plane/app.env` 创建成指向真实
 `../proxy-control-plane/.local/app.env` 的 symlink。role 只会复制这个 env 文件到
 目标主机的 `/opt/proxy-control-plane/app.env`，权限为 `0600`，Docker Compose
 通过 `env_file` 加载它。
@@ -205,13 +248,13 @@ inventory 里，`proxy_control_plane_sync_nodes` 和 `proxy_control_plane_nodes`
 这些私有变量放在对应 role vars 里：
 
 ```yaml
-# .local/role_vars/proxy_control_plane/main.yml
+# .local/role_vars/apps/proxy_control_plane/main.yml
 proxy_control_plane_node_sync_enabled: true
 proxy_control_plane_api_url: "https://control-plane.example.com"
 proxy_control_plane_admin_email: "admin@example.com"
 proxy_control_plane_admin_password: "..."
 
-# .local/role_vars/xray/main.yml
+# .local/role_vars/apps/xray/main.yml
 xray_public_key: "..."
 ```
 

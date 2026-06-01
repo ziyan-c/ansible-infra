@@ -1,0 +1,22 @@
+---
+wg_restricted_enabled: false
+
+wg_restricted_interface: wg-restricted
+wg_restricted_network_cidr: "10.13.14.0/24"
+wg_restricted_network_prefix: "10.13.14"
+wg_restricted_hub_ip_suffix: 1
+wg_restricted_port: 51821
+wg_restricted_hub: ""
+
+wg_restricted_hub_pub: ""
+wg_restricted_hub_priv: ""
+wg_restricted_nodes: {}
+wg_restricted_preshared_keys:
+  node_pairs: {}
+
+wg_restricted_trusted_interface: wg0
+wg_restricted_firewall_script_path: /usr/local/sbin/wg-restricted-firewall
+wg_restricted_forward_chain: WG_RESTRICTED_FORWARD
+wg_restricted_input_chain: WG_RESTRICTED_INPUT
+wg_restricted_iptables_binary: iptables
+

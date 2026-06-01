@@ -23,8 +23,6 @@ def run_json(command):
         "ANSIBLE_VAULT_PASSWORD_FILE",
         str(REPO_ROOT / ".local.example/vault_password"),
     )
-    env.setdefault("ANSIBLE_PRIVATE_STATE_DIR", str(REPO_ROOT / ".local.example"))
-
     result = subprocess.run(
         command,
         cwd=REPO_ROOT,
@@ -36,6 +34,22 @@ def run_json(command):
     return json.loads(result.stdout)
 
 
+def load_example_role_vars():
+    role_vars_dir = REPO_ROOT / ".local.example/role_vars"
+    paths = sorted(
+        list(role_vars_dir.rglob("*.yml")) + list(role_vars_dir.rglob("*.yaml"))
+    )
+    merged = {}
+
+    for path in paths:
+        rel_path = str(path.relative_to(REPO_ROOT))
+        data = run_json(["yq", "-o=json", ".", rel_path])
+        if data:
+            merged.update(data)
+
+    return merged
+
+
 @pytest.fixture(scope="module")
 def inventory_context():
     inventory = run_json(
@@ -43,10 +57,7 @@ def inventory_context():
     )
     site = run_json(["yq", "-o=json", ".", "site.yml"])
     all_vars = run_json(["yq", "-o=json", ".", ".local.example/group_vars/all.yml"])
-    wg_vars = run_json(
-        ["yq", "-o=json", ".", ".local.example/role_vars/vpn_wireguard/main.yml"]
-    )
-    all_vars.update(wg_vars)
+    all_vars.update(load_example_role_vars())
     hosts = set(inventory["_meta"]["hostvars"])
     groups = {
         name: set(data.get("hosts", []))
@@ -225,9 +236,27 @@ def test_wireguard_preshared_keys_cover_all_peer_pairs(inventory_context):
     assert all(value for value in spoke_psks.values())
 
 
+def test_wireguard_restricted_hub_and_preshared_keys_are_valid(inventory_context):
+    all_vars = inventory_context["all_vars"]
+    wg_servers = all_vars["wg_servers"]
+    restricted_nodes = all_vars.get("wg_restricted_nodes", {})
+    node_psks = all_vars.get("wg_restricted_preshared_keys", {}).get("node_pairs", {})
+    hub = all_vars["wg_restricted_hub"]
+
+    assert all_vars["wg_restricted_interface"] == "wg-restricted"
+    assert hub in wg_servers
+    assert wg_servers[hub].get("endpoint")
+    assert all_vars["wg_restricted_network_cidr"].endswith("/24")
+    assert restricted_nodes
+
+    expected_pairs = {f"{node}__{hub}" for node in restricted_nodes}
+    assert set(node_psks) == expected_pairs
+    assert all(value for value in node_psks.values())
+
+
 def test_tunnel_hosts_have_cloudflare_tunnel_tokens(inventory_context):
     cloudflared_vars = run_json(
-        ["yq", "-o=json", ".", ".local.example/role_vars/cloudflared/main.yml"]
+        ["yq", "-o=json", ".", ".local.example/role_vars/apps/cloudflared/main.yml"]
     )
 
     assert inventory_context["groups"]["tunnel_nodes"]

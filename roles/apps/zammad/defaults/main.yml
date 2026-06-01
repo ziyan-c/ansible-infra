@@ -1,5 +1,5 @@
 ---
-zammad_env_template_src: "{{ private_state_dir | default(playbook_dir ~ '/.local') }}/role_vars/zammad/zammad.env.j2"
+zammad_env_template_src: "{{ ansible_local_role_vars_dir | default(playbook_dir ~ '/.local/role_vars') }}/apps/zammad/zammad.env.j2"
 zammad_sync_script_path: /opt/zammad/zammad_sync.sh
 zammad_backup_local_log_file: /var/log/zammad_backup_local.log
 zammad_backup_cloud_log_file: /var/log/zammad_backup_cloud.log

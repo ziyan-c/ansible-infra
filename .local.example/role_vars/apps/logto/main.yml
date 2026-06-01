@@ -34,3 +34,4 @@ logto_service_log_retention_days: 90
 logto_expired_transient_grace_days: 7
 logto_passcode_retention_days: 7
 logto_sentinel_activity_retention_days: 30
+deploy_node_logto: vps-b.example.com

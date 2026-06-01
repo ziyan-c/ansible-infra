@@ -1,0 +1,4 @@
+---
+mailcow_version: "REPLACE_WITH_MAILCOW_GIT_TAG"
+mailcow_config_template_src: "{{ ansible_local_role_vars_dir }}/apps/mailcow/mailcow.conf.j2"
+deploy_node_mailcow: vps-b.example.com

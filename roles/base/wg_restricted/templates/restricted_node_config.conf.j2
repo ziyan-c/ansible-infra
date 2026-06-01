@@ -1,0 +1,22 @@
+[Interface]
+# Restricted Node: {{ item.key }}
+PrivateKey = {{ item.value.priv | default('REPLACE_ME_RESTRICTED_NODE_PRIVATE_KEY') }}
+Address = {{ wg_restricted_network_prefix }}.{{ item.value.ip_suffix }}/24
+MTU = 1280
+
+{% set hub = wg_servers[wg_restricted_hub] %}
+{% set node_psks = wg_restricted_preshared_keys.node_pairs | default({}) %}
+{% set psk_key = item.key ~ '__' ~ wg_restricted_hub %}
+{% set psk = node_psks[psk_key] | default('') %}
+[Peer]
+# Restricted hub: {{ wg_restricted_hub }} ({{ hub.hostname }})
+PublicKey = {{ wg_restricted_hub_pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
+Endpoint = {{ hub.endpoint }}:{{ wg_restricted_port }}
+# Route replies for trusted WG clients through the hub, but the hub firewall blocks
+# restricted nodes from initiating new connections back into the trusted network.
+AllowedIPs = {{ wg_network_cidr }}, {{ wg_restricted_network_prefix }}.{{ wg_restricted_hub_ip_suffix }}/32
+PersistentKeepalive = {{ item.value.persistent_keepalive | default(25) }}
+

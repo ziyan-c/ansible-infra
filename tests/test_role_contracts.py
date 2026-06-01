@@ -8,6 +8,15 @@ def read_role_file(path):
     return (REPO_ROOT / path).read_text(encoding="utf-8")
 
 
+def assert_site_uses_recursive_role_vars(site):
+    assert "pre_tasks: &load_role_vars" in site
+    assert "pre_tasks: *load_role_vars" in site
+    assert "ansible.builtin.include_vars" in site
+    assert 'dir: "{{ ansible_local_role_vars_dir }}"' in site
+    assert "ignore_unknown_extensions: true" in site
+    assert "- always" in site
+
+
 def test_ssh_restart_handler_uses_explicit_service_detection():
     handler = read_role_file("roles/base/system_init/handlers/main.yml")
 
@@ -52,7 +61,7 @@ def test_logto_retention_uses_postgres_delegate_and_cron_file():
 def test_rclone_config_update_requires_explicit_force_flag():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")
-    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
+    system_role_vars = read_role_file(".local.example/role_vars/base/system_init/main.yml")
 
     assert "rclone_config_force_update: false" in defaults
     assert "rclone_config_force_update: false" in system_role_vars
@@ -65,8 +74,8 @@ def test_sftpgo_gdrive_mount_is_role_scoped_and_systemd_managed():
     defaults = read_role_file("roles/apps/sftpgo/defaults/main.yml")
     tasks = read_role_file("roles/apps/sftpgo/tasks/main.yml")
     service = read_role_file("roles/apps/sftpgo/templates/rclone-gdrive.service.j2")
-    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
-    sftpgo_role_vars = read_role_file(".local.example/role_vars/sftpgo/main.yml")
+    system_role_vars = read_role_file(".local.example/role_vars/base/system_init/main.yml")
+    sftpgo_role_vars = read_role_file(".local.example/role_vars/apps/sftpgo/main.yml")
 
     assert "rclone_gdrive_mount_enabled" not in system_defaults
     assert "rclone_gdrive_mount_enabled" not in system_role_vars
@@ -109,7 +118,7 @@ def test_sftpgo_gdrive_mount_is_role_scoped_and_systemd_managed():
 def test_system_init_apt_upgrade_mode_separates_update_upgrade_and_dist_upgrade():
     defaults = read_role_file("roles/base/system_init/defaults/main.yml")
     tasks = read_role_file("roles/base/system_init/tasks/main.yml")
-    system_role_vars = read_role_file(".local.example/role_vars/system_init/main.yml")
+    system_role_vars = read_role_file(".local.example/role_vars/base/system_init/main.yml")
 
     assert "system_apt_upgrade_mode:" in defaults
     assert "update_only" in defaults
@@ -131,7 +140,7 @@ def test_wireguard_supports_single_hub_spoke_nodes():
     tasks = read_role_file("roles/base/vpn_wireguard/tasks/main.yml")
     server_template = read_role_file("roles/base/vpn_wireguard/templates/wg0.conf.j2")
     spoke_template = read_role_file("roles/base/vpn_wireguard/templates/spoke_config.conf.j2")
-    vpn_role_vars = read_role_file(".local.example/role_vars/vpn_wireguard/main.yml")
+    vpn_role_vars = read_role_file(".local.example/role_vars/base/vpn_wireguard/main.yml")
 
     assert "wg_spoke_nodes" in tasks
     assert "item.value.hub in wg_servers" in tasks
@@ -145,6 +154,59 @@ def test_wireguard_supports_single_hub_spoke_nodes():
     assert "wg_spoke_nodes:" in vpn_role_vars
     assert "homelab:" in vpn_role_vars
     assert "spoke_pairs:" in vpn_role_vars
+
+
+def test_wg_restricted_builds_second_hub_spoke_network_with_hub_firewall():
+    site = read_role_file("site.yml")
+    tasks = read_role_file("roles/base/wg_restricted/tasks/main.yml")
+    defaults = read_role_file("roles/base/wg_restricted/defaults/main.yml")
+    hub_template = read_role_file("roles/base/wg_restricted/templates/wg-restricted.conf.j2")
+    node_template = read_role_file("roles/base/wg_restricted/templates/restricted_node_config.conf.j2")
+    firewall = read_role_file("roles/base/wg_restricted/templates/wg-restricted-firewall.sh.j2")
+    wg0_template = read_role_file("roles/base/vpn_wireguard/templates/wg0.conf.j2")
+    role_vars = read_role_file(".local.example/role_vars/base/wg_restricted/main.yml")
+
+    assert "base/wg_restricted" in site
+    assert_site_uses_recursive_role_vars(site)
+    assert "wg-restricted" in site
+    assert "wg_restricted_enabled: false" in defaults
+    assert 'wg_restricted_network_cidr: "10.13.14.0/24"' in defaults
+    assert "wg_restricted_interface: wg-restricted" in defaults
+    assert "wg_restricted_hub_ip_suffix: 1" in defaults
+    assert "wg_restricted_nodes: {}" in defaults
+
+    assert "inventory_hostname == wg_restricted_hub_host" in tasks
+    assert "wg_restricted_nodes | dict2items" in tasks
+    assert "wg-restricted-firewall.sh.j2" in tasks
+    assert "wg-quick@{{ wg_restricted_interface }}" in tasks
+    assert "ansible.posix.firewalld" in tasks
+    assert "trusted" not in tasks
+    assert "wg-restricted/{{ item.key }}" in tasks
+    assert "restricted_node_config.conf.j2" in tasks
+
+    assert "ListenPort = {{ wg_restricted_port }}" in hub_template
+    assert "PostUp = {{ wg_restricted_firewall_script_path }} up" in hub_template
+    assert "AllowedIPs = {{ wg_restricted_network_prefix }}.{{ node.ip_suffix }}/32" in hub_template
+    assert "Endpoint = {{ hub.endpoint }}:{{ wg_restricted_port }}" in node_template
+    assert "AllowedIPs = {{ wg_network_cidr }}, {{ wg_restricted_network_prefix }}.{{ wg_restricted_hub_ip_suffix }}/32" in node_template
+
+    assert "-i \"$TRUSTED_IF\" -o \"$WG_IF\" -j ACCEPT" in firewall
+    assert "-i \"$WG_IF\" -o \"$TRUSTED_IF\"" in firewall
+    assert "--ctstate ESTABLISHED,RELATED -j ACCEPT" in firewall
+    assert "-i \"$WG_IF\" -j DROP" in firewall
+    assert "-o \"$WG_IF\" -j DROP" in firewall
+    assert "INPUT 1 -j \"$INPUT_CHAIN\"" in firewall
+
+    assert "wg_restricted_network_cidr" in wg0_template
+    assert "wg_restricted_hub_name == name" in wg0_template
+    assert "peer_allowed_ips.values + [wg_restricted_cidr]" in wg0_template
+    assert "wg_restricted_firewall_postup" in wg0_template
+    assert "test ! -x ' ~ wg_restricted_firewall_hook" in wg0_template
+
+    assert "wg_restricted_enabled: false" in role_vars
+    assert 'wg_restricted_network_cidr: "10.66.14.0/24"' in role_vars
+    assert "restricted_a:" in role_vars
+    assert "restricted_a__vps_a" in role_vars
 
 
 def test_zammad_storage_status_uses_machine_readable_sentinels():
@@ -226,19 +288,16 @@ def test_proxy_control_plane_node_sync_registers_xray_under_caddy_and_xray_by_ap
     site = read_role_file("site.yml")
     tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
     defaults = read_role_file("roles/apps/proxy_control_plane_node_sync/defaults/main.yml")
-    xray_role_vars = read_role_file(".local.example/role_vars/xray/main.yml")
+    xray_role_vars = read_role_file(".local.example/role_vars/apps/xray/main.yml")
     xray_under_caddy_role_vars = read_role_file(
-        ".local.example/role_vars/xray_under_caddy/main.yml"
+        ".local.example/role_vars/apps/xray_under_caddy/main.yml"
     )
-    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/apps/proxy_control_plane/main.yml")
     inventory = read_role_file(".local.example/inventory.yml")
 
     assert "apps/proxy_control_plane_node_sync" in site
     assert "proxy_control_plane_sync_nodes" in site
-    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
-    assert "/role_vars/proxy_control_plane/main.yml" in site
-    assert "/role_vars/xray/main.yml" in site
-    assert "/role_vars/xray_under_caddy/main.yml" in site
+    assert_site_uses_recursive_role_vars(site)
     assert "proxy_control_plane_sync_nodes" in inventory
     assert "proxy_control_plane_node_sync_enabled: false" in defaults
     assert 'proxy_control_plane_api_url: "http://127.0.0.1:9710"' in defaults
@@ -260,7 +319,7 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     defaults = read_role_file("roles/apps/proxy_control_plane/defaults/main.yml")
     compose = read_role_file("roles/apps/proxy_control_plane/templates/docker-compose.yml.j2")
     inventory = read_role_file(".local.example/inventory.yml")
-    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/apps/proxy_control_plane/main.yml")
 
     assert "apps/proxy_control_plane" in site
     assert "proxy_control_plane_nodes" in site
@@ -283,7 +342,7 @@ def test_proxy_control_plane_role_deploys_ghcr_image_and_migrates_before_start()
     assert "PCP_LISTEN_ADDR" not in compose
     assert "PCP_RUNTIME_SYNC_ENABLED" not in compose
     assert "proxy_control_plane_enabled: false" in proxy_role_vars
-    assert 'proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"' in proxy_role_vars
+    assert 'proxy_control_plane_env_file_src: "{{ ansible_local_role_vars_dir }}/apps/proxy_control_plane/app.env"' in proxy_role_vars
 
 def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_config = read_role_file("roles/apps/xray/templates/config.json.j2")
@@ -291,7 +350,7 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
     xray_compose = read_role_file("roles/apps/xray/templates/docker-compose.yml.j2")
     xray_under_caddy_compose = read_role_file("roles/apps/xray_under_caddy/templates/docker-compose.yml.j2")
     sync_tasks = read_role_file("roles/apps/proxy_control_plane_node_sync/tasks/main.yml")
-    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/apps/proxy_control_plane/main.yml")
 
     assert "proxy_control_plane_runtime_api_tag" in xray_config
     assert "proxy_control_plane_runtime_api_tag" in xray_under_caddy_config
@@ -315,7 +374,7 @@ def test_proxy_control_plane_runtime_api_is_wg_bound_and_registered():
 def test_proxy_control_plane_subscription_proxy_is_optional_caddy_route():
     caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
-    proxy_role_vars = read_role_file(".local.example/role_vars/proxy_control_plane/main.yml")
+    proxy_role_vars = read_role_file(".local.example/role_vars/apps/proxy_control_plane/main.yml")
 
     assert "proxy_control_plane_subscription_proxy_enabled: false" in caddy_defaults
     assert "proxy_control_plane_subscription_proxy_enabled: false" in proxy_role_vars
@@ -337,14 +396,11 @@ def test_logto_role_is_wg_bound_and_caddy_only_proxies_core():
     caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
     caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     inventory = read_role_file(".local.example/inventory.yml")
-    logto_role_vars = read_role_file(".local.example/role_vars/logto/main.yml")
+    logto_role_vars = read_role_file(".local.example/role_vars/apps/logto/main.yml")
 
     assert "apps/logto" in site
     assert "logto_nodes" in site
-    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
-    assert "/role_vars/logto/main.yml" in site
-    assert "/role_vars/postgres/main.yml" in site
-    assert "/role_vars/vpn_wireguard/main.yml" in site
+    assert_site_uses_recursive_role_vars(site)
     assert "logto_nodes" in inventory
     assert 'logto_image: "ghcr.io/logto-io/logto:1.40.1"' in defaults
     assert "logto_enabled: false" in defaults
@@ -406,14 +462,11 @@ def test_sftpgo_role_is_wg_bound_and_separates_public_and_admin_bindings():
     caddy_template = read_role_file("roles/gateway/caddy/templates/Caddyfile.j2")
     caddy_defaults = read_role_file("roles/gateway/caddy/defaults/main.yml")
     inventory = read_role_file(".local.example/inventory.yml")
-    sftpgo_role_vars = read_role_file(".local.example/role_vars/sftpgo/main.yml")
+    sftpgo_role_vars = read_role_file(".local.example/role_vars/apps/sftpgo/main.yml")
 
     assert "apps/sftpgo" in site
     assert "sftpgo_nodes" in site
-    assert "ANSIBLE_PRIVATE_STATE_DIR" in site
-    assert "/role_vars/sftpgo/main.yml" in site
-    assert "/role_vars/postgres/main.yml" in site
-    assert "/role_vars/vpn_wireguard/main.yml" in site
+    assert_site_uses_recursive_role_vars(site)
     assert "sftpgo_nodes" in inventory
 
     assert 'sftpgo_image: "drakkan/sftpgo:v2.7.3"' in defaults

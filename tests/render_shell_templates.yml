@@ -3,13 +3,17 @@
   hosts: vps-a.example.com
   gather_facts: false
   connection: local
-  vars_files:
-    - ../.local.example/role_vars/certbot/main.yml
-    - ../.local.example/role_vars/logto/main.yml
-    - ../.local.example/role_vars/mailcow/main.yml
-    - ../.local.example/role_vars/postgres/main.yml
-    - ../.local.example/role_vars/sftpgo/main.yml
-    - ../.local.example/role_vars/zammad/main.yml
+  pre_tasks:
+    - name: Load example role variables
+      ansible.builtin.include_vars:
+        dir: "{{ ansible_local_role_vars_dir }}"
+        extensions:
+          - yml
+          - yaml
+        ignore_unknown_extensions: true
+      no_log: true
+      tags:
+        - always
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."

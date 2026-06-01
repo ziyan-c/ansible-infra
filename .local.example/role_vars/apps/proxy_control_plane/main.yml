@@ -3,7 +3,7 @@ proxy_control_plane_enabled: false
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "127.0.0.1"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"
+proxy_control_plane_env_file_src: "{{ ansible_local_role_vars_dir }}/apps/proxy_control_plane/app.env"
 
 proxy_control_plane_node_sync_enabled: false
 proxy_control_plane_api_url: "http://127.0.0.1:9710"

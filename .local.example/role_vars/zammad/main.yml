@@ -1,2 +1,0 @@
----
-zammad_env_template_src: "{{ private_state_dir }}/role_vars/zammad/zammad.env.j2"

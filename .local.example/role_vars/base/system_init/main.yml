@@ -4,16 +4,17 @@
 system_apt_upgrade_mode: update_upgrade
 system_disable_ufw_apparmor: false
 root_authorized_keys_exclusive: false
-
 ssh_public_key_personal: "ssh-ed25519 REPLACE_ME user@example"
 ssh_password_auth: "no"
 ssh_permit_root: "prohibit-password"
 swapfile_size_mb: 2048
 rotate_root_password: false
-
 rclone_config_content: |
   [gdrive]
   type = drive
   scope = drive
   token = REPLACE_ME_RCLONE_TOKEN_JSON
 rclone_config_force_update: false
+system_timezone: Etc/UTC
+backup_keep_local: 7
+backup_keep_remote: 14

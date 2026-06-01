@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ACTION="${1:-up}"
+IPT="{{ wg_restricted_iptables_binary }}"
+WG_IF="{{ wg_restricted_interface }}"
+TRUSTED_IF="{{ wg_restricted_trusted_interface }}"
+FORWARD_CHAIN="{{ wg_restricted_forward_chain }}"
+INPUT_CHAIN="{{ wg_restricted_input_chain }}"
+
+delete_jump() {
+  local base_chain="$1"
+  local target_chain="$2"
+
+  while "$IPT" -w -C "$base_chain" -j "$target_chain" 2>/dev/null; do
+    "$IPT" -w -D "$base_chain" -j "$target_chain"
+  done
+}
+
+delete_chain() {
+  local chain="$1"
+
+  "$IPT" -w -F "$chain" 2>/dev/null || true
+  "$IPT" -w -X "$chain" 2>/dev/null || true
+}
+
+case "$ACTION" in
+  up)
+    delete_jump FORWARD "$FORWARD_CHAIN"
+    delete_jump INPUT "$INPUT_CHAIN"
+
+    "$IPT" -w -N "$FORWARD_CHAIN" 2>/dev/null || true
+    "$IPT" -w -F "$FORWARD_CHAIN"
+    "$IPT" -w -A "$FORWARD_CHAIN" -i "$TRUSTED_IF" -o "$WG_IF" -j ACCEPT
+    "$IPT" -w -A "$FORWARD_CHAIN" -i "$WG_IF" -o "$TRUSTED_IF" \
+      -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    "$IPT" -w -A "$FORWARD_CHAIN" -i "$WG_IF" -j DROP
+    "$IPT" -w -A "$FORWARD_CHAIN" -o "$WG_IF" -j DROP
+    "$IPT" -w -I FORWARD 1 -j "$FORWARD_CHAIN"
+
+    "$IPT" -w -N "$INPUT_CHAIN" 2>/dev/null || true
+    "$IPT" -w -F "$INPUT_CHAIN"
+    "$IPT" -w -A "$INPUT_CHAIN" -i "$WG_IF" \
+      -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+    "$IPT" -w -A "$INPUT_CHAIN" -i "$WG_IF" -j DROP
+    "$IPT" -w -I INPUT 1 -j "$INPUT_CHAIN"
+    ;;
+  down)
+    delete_jump FORWARD "$FORWARD_CHAIN"
+    delete_jump INPUT "$INPUT_CHAIN"
+    delete_chain "$FORWARD_CHAIN"
+    delete_chain "$INPUT_CHAIN"
+    ;;
+  *)
+    echo "usage: $0 {up|down}" >&2
+    exit 2
+    ;;
+esac
+

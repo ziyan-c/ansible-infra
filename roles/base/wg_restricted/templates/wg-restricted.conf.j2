@@ -1,0 +1,25 @@
+[Interface]
+# Restricted WireGuard hub on {{ inventory_hostname }}
+Address = {{ wg_restricted_network_prefix }}.{{ wg_restricted_hub_ip_suffix }}/24
+ListenPort = {{ wg_restricted_port }}
+PrivateKey = {{ wg_restricted_hub_priv }}
+MTU = 1280
+PostUp = {{ wg_restricted_firewall_script_path }} up
+PostDown = {{ wg_restricted_firewall_script_path }} down
+
+{% set node_psks = wg_restricted_preshared_keys.node_pairs | default({}) %}
+{% for name, node in wg_restricted_nodes.items() %}
+{% set psk_key = name ~ '__' ~ wg_restricted_hub %}
+{% set psk = node_psks[psk_key] | default('') %}
+[Peer]
+# Restricted node: {{ name }}
+PublicKey = {{ node.pub }}
+{% if psk | length > 0 %}
+PresharedKey = {{ psk }}
+{% endif %}
+AllowedIPs = {{ wg_restricted_network_prefix }}.{{ node.ip_suffix }}/32
+{% if (node.persistent_keepalive | default(25) | int) > 0 %}
+PersistentKeepalive = {{ node.persistent_keepalive | default(25) }}
+{% endif %}
+
+{% endfor %}

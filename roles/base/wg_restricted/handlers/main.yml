@@ -1,0 +1,8 @@
+---
+- name: Restart wg-restricted
+  ansible.builtin.systemd:
+    name: "wg-quick@{{ wg_restricted_interface }}"
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+

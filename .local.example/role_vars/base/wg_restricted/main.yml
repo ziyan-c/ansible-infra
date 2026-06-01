@@ -1,0 +1,23 @@
+---
+wg_restricted_enabled: false
+
+wg_restricted_interface: wg-restricted
+wg_restricted_network_cidr: "10.66.14.0/24"
+wg_restricted_network_prefix: "10.66.14"
+wg_restricted_hub_ip_suffix: 1
+wg_restricted_port: 51821
+wg_restricted_hub: vps_a
+
+wg_restricted_hub_pub: "REPLACE_ME_WG_RESTRICTED_HUB_PUBLIC_KEY"
+wg_restricted_hub_priv: "REPLACE_ME_WG_RESTRICTED_HUB_PRIVATE_KEY"
+
+wg_restricted_nodes:
+  restricted_a:
+    ip_suffix: 10
+    pub: "REPLACE_ME_RESTRICTED_A_PUBLIC_KEY"
+    priv: "REPLACE_ME_RESTRICTED_A_PRIVATE_KEY_OR_REMOVE_THIS_FIELD"
+    persistent_keepalive: 25
+
+wg_restricted_preshared_keys:
+  node_pairs:
+    restricted_a__vps_a: "REPLACE_ME_WG_RESTRICTED_PSK_RESTRICTED_A_VPS_A"

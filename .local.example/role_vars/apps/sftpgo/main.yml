@@ -9,14 +9,12 @@ sftpgo_public_http_port: 8090
 sftpgo_admin_http_port: 8091
 sftpgo_sftp_enabled: false
 sftpgo_sftp_port: 2022
-
 sftpgo_domain: "files.{{ base_domain }}"
 sftpgo_admin_domain: "files-admin.{{ base_domain }}"
 sftpgo_admin_proxy_enabled: true
 sftpgo_admin_tls_provider: certbot
 sftpgo_admin_allowed_remote_ips:
   - "{{ wg_network_cidr }}"
-
 sftpgo_db_host: >-
   {{ wg_network_prefix }}.{{ (wg_servers.values() | selectattr('hostname', 'equalto', deploy_node_postgres) | first).ip_suffix }}
 sftpgo_db_port: 5432
@@ -28,13 +26,11 @@ sftpgo_db_password: "REPLACE_ME_SFTPGO_DB_PASSWORD"
 sftpgo_postgres_delegate_host: "{{ deploy_node_postgres }}"
 sftpgo_signing_passphrase: "REPLACE_ME_SFTPGO_SIGNING_PASSPHRASE"
 sftpgo_setup_installation_code: "REPLACE_ME_SFTPGO_SETUP_INSTALLATION_CODE"
-
 sftpgo_gdrive_mount_enabled: true
 sftpgo_gdrive_mount_remote: "gdrive:"
 sftpgo_gdrive_mount_point: /mnt/gdrive
 sftpgo_gdrive_storage_subdir: SFTPGO-STORAGE
 sftpgo_gdrive_storage_remote: "{{ sftpgo_gdrive_mount_remote }}{{ sftpgo_gdrive_storage_subdir }}"
-
 # Keep OIDC off until the Logto application exists and the client secret is
 # filled in. Then set this to true.
 sftpgo_oidc_enabled: false
@@ -44,13 +40,12 @@ sftpgo_oidc_client_id: ""
 sftpgo_oidc_client_secret: ""
 sftpgo_oidc_username_field: email
 sftpgo_oidc_ui_name: Logto
-
 sftpgo_retention_enabled: true
 sftpgo_defender_event_retention_days: 90
 sftpgo_defender_host_retention_days: 90
 sftpgo_shared_session_retention_days: 7
 sftpgo_active_transfer_stale_hours: 24
 sftpgo_stale_node_retention_days: 30
-
 sftpgo_backup_enabled: false
 sftpgo_backup_remote: "gdrive:AUTO_BACKUPS/sftpgo/{{ inventory_hostname }}"
+deploy_node_sftpgo: vps-a.example.com

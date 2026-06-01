@@ -3,13 +3,24 @@
   hosts: vps-a.example.com
   gather_facts: false
   connection: local
-  vars_files:
-    - ../.local.example/role_vars/caddy/main.yml
-    - ../.local.example/role_vars/certbot/main.yml
-    - ../.local.example/role_vars/docker_setup/main.yml
-    - ../.local.example/role_vars/vpn_wireguard/main.yml
-    - ../.local.example/role_vars/xray/main.yml
-    - ../.local.example/role_vars/xray_under_caddy/main.yml
+  pre_tasks: &load_example_role_vars
+    - name: Load WireGuard restricted role defaults
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../roles/base/wg_restricted/defaults/main.yml"
+      no_log: true
+      tags:
+        - always
+
+    - name: Load example role variables
+      ansible.builtin.include_vars:
+        dir: "{{ ansible_local_role_vars_dir }}"
+        extensions:
+          - yml
+          - yaml
+        ignore_unknown_extensions: true
+      no_log: true
+      tags:
+        - always
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
@@ -19,60 +30,62 @@
     ansible_facts:
       default_ipv4:
         interface: eth0
-    proxy_control_plane_runtime_api_enabled: true
-    proxy_control_plane_runtime_api_host: "10.66.0.1"
-    proxy_control_plane_runtime_api_tag: proxy-control-plane-api
-    proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
-    proxy_control_plane_xray_runtime_api_port: 10085
-    proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
-    proxy_control_plane_subscription_proxy_enabled: true
-    proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
-    logto_enabled: true
-    logto_domain: auth.example.com
-    logto_admin_domain: logto-admin.example.com
-    logto_admin_proxy_enabled: true
-    logto_admin_tls_provider: certbot
-    logto_admin_allowed_remote_ips:
-      - 10.66.0.0/24
-    logto_bind_host: "10.66.0.2"
-    logto_core_port: 3001
-    logto_admin_port: 3002
-    sftpgo_enabled: true
-    sftpgo_image: "drakkan/sftpgo:v2.7.3"
-    sftpgo_domain: files.example.com
-    sftpgo_admin_domain: files-admin.example.com
-    sftpgo_admin_proxy_enabled: true
-    sftpgo_admin_tls_provider: certbot
-    sftpgo_admin_allowed_remote_ips:
-      - 10.66.0.0/24
-    sftpgo_bind_host: "10.66.0.1"
-    sftpgo_public_http_port: 8090
-    sftpgo_admin_http_port: 8091
-    sftpgo_sftp_enabled: false
-    sftpgo_sftp_port: 2022
-    sftpgo_container_name: sftpgo
-    sftpgo_docker_network: web-proxy
-    sftpgo_storage_dir: /mnt/gdrive/SFTPGO-STORAGE
-    sftpgo_config_dir: /opt/sftpgo/config
-    sftpgo_grace_time: 32
-    sftpgo_hide_support_link: true
-    sftpgo_setup_installation_code: ""
-    sftpgo_public_disabled_login_methods: 85
-    sftpgo_admin_disabled_login_methods: 0
-    sftpgo_proxy_allowed:
-      - 127.0.0.1/32
-      - 172.16.0.0/12
-    sftpgo_client_ip_proxy_header: X-Forwarded-For
-    sftpgo_client_ip_header_depth: 0
-    sftpgo_security_allowed_hosts: []
-    sftpgo_db_host: "10.66.0.2"
-    sftpgo_db_port: 5432
-    sftpgo_db_name: sftpgo
-    sftpgo_db_user: sftpgo
-    sftpgo_db_password: REPLACE_ME_SFTPGO_DB_PASSWORD
-    sftpgo_db_sslmode: 0
-    sftpgo_signing_passphrase: REPLACE_ME_SFTPGO_SIGNING_PASSPHRASE
-    sftpgo_oidc_enabled: false
+    render_override_vars:
+      wg_restricted_enabled: true
+      proxy_control_plane_runtime_api_enabled: true
+      proxy_control_plane_runtime_api_host: "10.66.0.1"
+      proxy_control_plane_runtime_api_tag: proxy-control-plane-api
+      proxy_control_plane_runtime_inbound_tag: proxy-control-plane-vless-in
+      proxy_control_plane_xray_runtime_api_port: 10085
+      proxy_control_plane_xray_under_caddy_runtime_api_port: 10085
+      proxy_control_plane_subscription_proxy_enabled: true
+      proxy_control_plane_subscription_proxy_upstream: "http://10.66.0.10:9710"
+      logto_enabled: true
+      logto_domain: auth.example.com
+      logto_admin_domain: logto-admin.example.com
+      logto_admin_proxy_enabled: true
+      logto_admin_tls_provider: certbot
+      logto_admin_allowed_remote_ips:
+        - 10.66.0.0/24
+      logto_bind_host: "10.66.0.2"
+      logto_core_port: 3001
+      logto_admin_port: 3002
+      sftpgo_enabled: true
+      sftpgo_image: "drakkan/sftpgo:v2.7.3"
+      sftpgo_domain: files.example.com
+      sftpgo_admin_domain: files-admin.example.com
+      sftpgo_admin_proxy_enabled: true
+      sftpgo_admin_tls_provider: certbot
+      sftpgo_admin_allowed_remote_ips:
+        - 10.66.0.0/24
+      sftpgo_bind_host: "10.66.0.1"
+      sftpgo_public_http_port: 8090
+      sftpgo_admin_http_port: 8091
+      sftpgo_sftp_enabled: false
+      sftpgo_sftp_port: 2022
+      sftpgo_container_name: sftpgo
+      sftpgo_docker_network: web-proxy
+      sftpgo_storage_dir: /mnt/gdrive/SFTPGO-STORAGE
+      sftpgo_config_dir: /opt/sftpgo/config
+      sftpgo_grace_time: 32
+      sftpgo_hide_support_link: true
+      sftpgo_setup_installation_code: ""
+      sftpgo_public_disabled_login_methods: 85
+      sftpgo_admin_disabled_login_methods: 0
+      sftpgo_proxy_allowed:
+        - 127.0.0.1/32
+        - 172.16.0.0/12
+      sftpgo_client_ip_proxy_header: X-Forwarded-For
+      sftpgo_client_ip_header_depth: 0
+      sftpgo_security_allowed_hosts: []
+      sftpgo_db_host: "10.66.0.2"
+      sftpgo_db_port: 5432
+      sftpgo_db_name: sftpgo
+      sftpgo_db_user: sftpgo
+      sftpgo_db_password: REPLACE_ME_SFTPGO_DB_PASSWORD
+      sftpgo_db_sslmode: 0
+      sftpgo_signing_passphrase: REPLACE_ME_SFTPGO_SIGNING_PASSPHRASE
+      sftpgo_oidc_enabled: false
     config_templates:
       - src: "{{ repo_root }}/roles/base/docker_setup/templates/daemon.json.j2"
         dest: json/docker-daemon.json
@@ -96,7 +109,15 @@
         dest: certbot/cloudflare.ini
       - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
         dest: wireguard/wg0.conf
+      - src: "{{ repo_root }}/roles/base/wg_restricted/templates/wg-restricted.conf.j2"
+        dest: wireguard/wg-restricted.conf
   tasks:
+    - name: Apply render variable overrides
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ render_override_vars | dict2items }}"
+      no_log: true
+
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:
         that:
@@ -121,6 +142,8 @@
         dest: "{{ render_dir }}/{{ item.dest }}"
         mode: "0600"
       loop: "{{ config_templates }}"
+      vars:
+        wg_restricted_enabled: true
 
     - name: Render WireGuard client template
       ansible.builtin.template:
@@ -144,17 +167,22 @@
           key: homelab
           value: "{{ wg_spoke_nodes.homelab }}"
 
+    - name: Render WireGuard restricted node template
+      ansible.builtin.template:
+        src: "{{ repo_root }}/roles/base/wg_restricted/templates/restricted_node_config.conf.j2"
+        dest: "{{ render_dir }}/wireguard/restricted_a_via_vps_a.conf"
+        mode: "0600"
+      vars:
+        wg_restricted_enabled: true
+        item:
+          key: restricted_a
+          value: "{{ wg_restricted_nodes.restricted_a }}"
+
 - name: Render static config templates for vps-b
   hosts: vps-b.example.com
   gather_facts: false
   connection: local
-  vars_files:
-    - ../.local.example/role_vars/certbot/main.yml
-    - ../.local.example/role_vars/cloudflared/main.yml
-    - ../.local.example/role_vars/logto/main.yml
-    - ../.local.example/role_vars/postgres/main.yml
-    - ../.local.example/role_vars/proxy_control_plane/main.yml
-    - ../.local.example/role_vars/vpn_wireguard/main.yml
+  pre_tasks: *load_example_role_vars
   vars:
     render_dir: "{{ lookup('env', 'TEST_RENDER_DIR') }}"
     repo_root: "{{ playbook_dir }}/.."
@@ -164,10 +192,12 @@
     ansible_facts:
       default_ipv4:
         interface: eth0
-    proxy_control_plane_environment: production
-    proxy_control_plane_project_dir: /opt/proxy-control-plane
-    proxy_control_plane_container_name: proxy-control-plane_api
-    proxy_control_plane_container_port: 9710
+    render_override_vars:
+      wg_restricted_enabled: true
+      proxy_control_plane_environment: production
+      proxy_control_plane_project_dir: /opt/proxy-control-plane
+      proxy_control_plane_container_name: proxy-control-plane_api
+      proxy_control_plane_container_port: 9710
     config_templates:
       - src: "{{ repo_root }}/roles/apps/postgres/templates/docker-compose.yml.j2"
         dest: compose/postgres.yml
@@ -186,6 +216,12 @@
       - src: "{{ repo_root }}/roles/base/vpn_wireguard/templates/wg0.conf.j2"
         dest: wireguard/vps-b.wg0.conf
   tasks:
+    - name: Apply render variable overrides
+      ansible.builtin.set_fact:
+        "{{ item.key }}": "{{ item.value }}"
+      loop: "{{ render_override_vars | dict2items }}"
+      no_log: true
+
     - name: Ensure TEST_RENDER_DIR was provided
       ansible.builtin.assert:
         that:
@@ -208,3 +244,5 @@
         dest: "{{ render_dir }}/{{ item.dest }}"
         mode: "0600"
       loop: "{{ config_templates }}"
+      vars:
+        wg_restricted_enabled: true

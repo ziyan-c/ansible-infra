@@ -16,6 +16,11 @@
 {% set wg_client_psks = wg_psks.client_pairs | default({}) %}
 {% set wg_spoke_psks = wg_psks.spoke_pairs | default({}) %}
 {% set wg_spoke_nodes = wg_spoke_nodes | default({}) %}
+{% set wg_restricted_is_enabled = wg_restricted_enabled | default(false) %}
+{% set wg_restricted_hub_name = wg_restricted_hub | default('') %}
+{% set wg_restricted_cidr = wg_restricted_network_cidr | default('') %}
+{% set wg_restricted_firewall_hook = wg_restricted_firewall_script_path | default('/usr/local/sbin/wg-restricted-firewall') %}
+{% set wg_restricted_firewall_postup = '; test ! -x ' ~ wg_restricted_firewall_hook ~ ' || ' ~ wg_restricted_firewall_hook ~ ' up' if (wg_restricted_is_enabled | bool and wg_restricted_hub_name == my_name) else '' %}
 
 [Interface]
 # 本机分配的内网 IP
@@ -25,7 +30,7 @@ PrivateKey = {{ my_node.priv }}
 
 # 开启 NAT 转发，强行插入规则到最顶部 (-I) 绕过 Firewalld 拦截，并允许一来一回的双向流量
 # 👇 在最后追加了 -o wg0 -j MASQUERADE 规则，解决内网跳板访问问题
-PostUp = iptables -I FORWARD -i wg0 -j ACCEPT; iptables -I FORWARD -o wg0 -j ACCEPT; iptables -t nat -I POSTROUTING -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE; iptables -t nat -I POSTROUTING -o wg0 -j MASQUERADE
+PostUp = iptables -I FORWARD -i wg0 -j ACCEPT; iptables -I FORWARD -o wg0 -j ACCEPT; iptables -t nat -I POSTROUTING -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE; iptables -t nat -I POSTROUTING -o wg0 -j MASQUERADE{{ wg_restricted_firewall_postup }}
 PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ ansible_facts.default_ipv4.interface }} -j MASQUERADE; iptables -t nat -D POSTROUTING -o wg0 -j MASQUERADE
 
 # ===============================================
@@ -42,6 +47,9 @@ PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j A
 {% set peer_allowed_ips.values = peer_allowed_ips.values + [wg_network_prefix ~ '.' ~ spoke.ip_suffix ~ '/32'] %}
 {% endif %}
 {% endfor %}
+{% if wg_restricted_is_enabled | bool and wg_restricted_hub_name == name and wg_restricted_cidr | length > 0 %}
+{% set peer_allowed_ips.values = peer_allowed_ips.values + [wg_restricted_cidr] %}
+{% endif %}
 [Peer]
 # Server: {{ peer.hostname }}
 PublicKey = {{ peer.pub }}

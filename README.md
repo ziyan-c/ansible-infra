@@ -47,6 +47,9 @@ Before running the playbook, make sure `.local/` contains the private inventory,
 shared variables in `group_vars/all.yml`, and per-role private files under
 `.local/role_vars/<role>/`, including SSH keys, WireGuard keys, Cloudflare
 tokens, database passwords, Rclone config, and app-specific env templates.
+`group_vars/all.yml` sets `ansible_local_role_vars_dir`, and `site.yml`
+recursively loads every `.yml` or `.yaml` file from that directory before each
+play.
 
 ## Common Commands
 
@@ -141,6 +144,44 @@ It also omits `DNS` by default so local LAN/domain resolution on the homelab
 machine stays untouched; set `dns:` on the spoke only if you really want
 `wg-quick` to override DNS.
 
+## WireGuard Restricted Nodes
+
+`wg-restricted` is a second WireGuard network for machines that should be
+managed from the trusted mesh but must not initiate connections back into it:
+
+```text
+wg0            10.13.13.0/24  trusted mesh
+wg-restricted 10.13.14.0/24  inbound-only managed nodes
+```
+
+Restricted nodes are hub-spoke only. They do not peer with each other. The hub
+allows trusted `wg0` traffic to reach every restricted node, allows only
+established/related return traffic from restricted nodes back to `wg0`, and
+drops restricted-to-restricted, restricted-to-hub, and restricted-to-Internet
+forwarding through the hub.
+
+Configure it in `.local/role_vars/base/wg_restricted/main.yml`:
+
+```yaml
+wg_restricted_enabled: true
+wg_restricted_hub: la_us
+wg_restricted_network_cidr: "10.13.14.0/24"
+wg_restricted_network_prefix: "10.13.14"
+
+wg_restricted_nodes:
+  restricted_a:
+    ip_suffix: 10
+    pub: "RESTRICTED_A_PUBLIC_KEY"
+    priv: "RESTRICTED_A_PRIVATE_KEY"
+
+wg_restricted_preshared_keys:
+  node_pairs:
+    restricted_a__la_us: "RESTRICTED_A_LA_US_PSK"
+```
+
+Run `ansible-playbook site.yml --tags wg-restricted` after replacing the keys.
+The generated node config is written under `.local/wg-restricted/`.
+
 ## Private State Backup
 
 Create or refresh the encrypted private-state bundle:
@@ -169,10 +210,10 @@ proxy_control_plane_enabled: true
 proxy_control_plane_image: "ghcr.io/ziyan-c/proxy-control-plane:0.2"
 proxy_control_plane_bind_host: "10.66.0.10"
 proxy_control_plane_host_port: 9710
-proxy_control_plane_env_file_src: "{{ private_state_dir }}/role_vars/proxy_control_plane/app.env"
+proxy_control_plane_env_file_src: "{{ ansible_local_role_vars_dir }}/apps/proxy_control_plane/app.env"
 ```
 
-Create `.local/role_vars/proxy_control_plane/app.env` as a symlink to the real
+Create `.local/role_vars/apps/proxy_control_plane/app.env` as a symlink to the real
 `../proxy-control-plane/.local/app.env` file. The role copies that private env file to
 `/opt/proxy-control-plane/app.env` with `0600` permissions, and Docker Compose
 loads it through `env_file`. Put every `PCP_*` runtime setting in that env file,
@@ -199,13 +240,13 @@ connected to the private mesh.
 Required private variables live in the relevant role vars files:
 
 ```yaml
-# .local/role_vars/proxy_control_plane/main.yml
+# .local/role_vars/apps/proxy_control_plane/main.yml
 proxy_control_plane_node_sync_enabled: true
 proxy_control_plane_api_url: "https://control-plane.example.com"
 proxy_control_plane_admin_email: "admin@example.com"
 proxy_control_plane_admin_password: "..."
 
-# .local/role_vars/xray/main.yml
+# .local/role_vars/apps/xray/main.yml
 xray_public_key: "..."
 ```
 

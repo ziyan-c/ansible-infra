@@ -7,7 +7,6 @@ export ANSIBLE_LOCAL_TEMP="${ANSIBLE_LOCAL_TEMP:-/tmp/ansible-local}"
 export ANSIBLE_REMOTE_TEMP="${ANSIBLE_REMOTE_TEMP:-/tmp/ansible-remote}"
 export ANSIBLE_HOME="${ANSIBLE_HOME:-$PWD/.ansible}"
 export ANSIBLE_VAULT_PASSWORD_FILE="${ANSIBLE_VAULT_PASSWORD_FILE:-$PWD/.local.example/vault_password}"
-export ANSIBLE_PRIVATE_STATE_DIR="${ANSIBLE_PRIVATE_STATE_DIR:-$PWD/.local.example}"
 mkdir -p "$ANSIBLE_LOCAL_TEMP" "$ANSIBLE_REMOTE_TEMP" "$ANSIBLE_HOME"
 
 tmp_dir="$(mktemp -d)"
@@ -120,6 +119,7 @@ assert_contains "$render_dir/certbot/cloudflare.ini" \
 assert_contains "$render_dir/wireguard/wg0.conf" "Address = 10.66.0.1/24"
 assert_contains "$render_dir/wireguard/wg0.conf" "Endpoint = vps-b.example.com:51820"
 assert_contains "$render_dir/wireguard/wg0.conf" "AllowedIPs = 10.66.0.2/32, 10.66.0.6/32"
+assert_contains "$render_dir/wireguard/wg0.conf" "wg-restricted-firewall up"
 assert_contains "$render_dir/wireguard/wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_VPS_A_VPS_B"
 assert_contains "$render_dir/wireguard/wg0.conf" \
@@ -134,6 +134,24 @@ assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
 	"AllowedIPs = 10.66.0.6/32"
 assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
 	"PresharedKey = REPLACE_ME_WG_PSK_HOMELAB_VPS_B"
+assert_contains "$render_dir/wireguard/vps-b.wg0.conf" \
+	"AllowedIPs = 10.66.0.1/32, 10.66.14.0/24"
+assert_contains "$render_dir/wireguard/wg-restricted.conf" \
+	"Address = 10.66.14.1/24"
+assert_contains "$render_dir/wireguard/wg-restricted.conf" \
+	"ListenPort = 51821"
+assert_contains "$render_dir/wireguard/wg-restricted.conf" \
+	"PostUp = /usr/local/sbin/wg-restricted-firewall up"
+assert_contains "$render_dir/wireguard/wg-restricted.conf" \
+	"# Restricted node: restricted_a"
+assert_contains "$render_dir/wireguard/wg-restricted.conf" \
+	"AllowedIPs = 10.66.14.10/32"
+assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
+	"Endpoint = vps-a.example.com:51821"
+assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
+	"AllowedIPs = 10.66.0.0/24, 10.66.14.1/32"
+assert_contains "$render_dir/wireguard/restricted_a_via_vps_a.conf" \
+	"PresharedKey = REPLACE_ME_WG_RESTRICTED_PSK_RESTRICTED_A_VPS_A"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
 	"Endpoint = vps-a.example.com:51820"
 assert_contains "$render_dir/wireguard/client_phone_vps_a.conf" \
