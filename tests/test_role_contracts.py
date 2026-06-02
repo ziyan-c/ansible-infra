@@ -193,8 +193,10 @@ def test_wg_restricted_builds_second_hub_spoke_network_with_hub_firewall():
     assert "-i \"$TRUSTED_IF\" -o \"$WG_IF\" -j ACCEPT" in firewall
     assert "-i \"$WG_IF\" -o \"$TRUSTED_IF\"" in firewall
     assert "--ctstate ESTABLISHED,RELATED -j ACCEPT" in firewall
-    assert "-i \"$WG_IF\" -j DROP" in firewall
-    assert "-o \"$WG_IF\" -j DROP" in firewall
+    assert '-i "$WG_IF" -p tcp' in firewall
+    assert '-o "$WG_IF" -p tcp' in firewall
+    assert "-j REJECT --reject-with tcp-reset" in firewall
+    assert "-j REJECT --reject-with icmp-admin-prohibited" in firewall
     assert "INPUT 1 -j \"$INPUT_CHAIN\"" in firewall
 
     assert "wg_restricted_network_cidr" in wg0_template
