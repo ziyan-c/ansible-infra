@@ -288,12 +288,20 @@ def test_postgres_backup_prunes_local_archives_to_keep_limit(script_harness):
     assert not (backup_dir / "pg_custom_data_20200102_000000.tar.gz").exists()
 
 
-def test_caddy_backup_success_excludes_its_own_script(script_harness):
+def test_caddy_backup_success_packages_only_site_with_caddy_path(script_harness):
     h = script_harness
     caddy_dir = h.workdir / "caddy"
-    caddy_dir.mkdir()
+    site_dir = caddy_dir / "site"
+    cert_dir = caddy_dir / "certs"
+    data_dir = caddy_dir / "data"
+    site_dir.mkdir(parents=True)
+    cert_dir.mkdir()
+    data_dir.mkdir()
+    (site_dir / "index.html").write_text("hello\n", encoding="utf-8")
     (caddy_dir / "Caddyfile").write_text("example.com\n", encoding="utf-8")
     (caddy_dir / "caddy_backup.sh").write_text("skip me\n", encoding="utf-8")
+    (cert_dir / "server.crt").write_text("skip cert\n", encoding="utf-8")
+    (data_dir / "cache.bin").write_text("skip data\n", encoding="utf-8")
     backup_dir = h.workdir / "caddy-backups"
 
     result = h.run_script(
@@ -313,15 +321,19 @@ def test_caddy_backup_success_excludes_its_own_script(script_harness):
         stderr=subprocess.PIPE,
     )
     assert listing.returncode == 0, listing.stdout + listing.stderr
-    assert "caddy/Caddyfile" in listing.stdout
+    assert "caddy/site/index.html" in listing.stdout
+    assert "caddy/Caddyfile" not in listing.stdout
     assert "caddy/caddy_backup.sh" not in listing.stdout
+    assert "caddy/certs/server.crt" not in listing.stdout
+    assert "caddy/data/cache.bin" not in listing.stdout
 
 
 def test_caddy_backup_prunes_local_archives_to_keep_limit(script_harness):
     h = script_harness
     caddy_dir = h.workdir / "caddy"
-    caddy_dir.mkdir()
-    (caddy_dir / "Caddyfile").write_text("example.com\n", encoding="utf-8")
+    site_dir = caddy_dir / "site"
+    site_dir.mkdir(parents=True)
+    (site_dir / "index.html").write_text("example.com\n", encoding="utf-8")
     backup_dir = h.workdir / "caddy-backups"
 
     for index in range(8):

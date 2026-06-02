@@ -268,7 +268,11 @@ def test_backup_cron_schedules_are_declared_and_staggered():
     assert "mailcow_backup_script_path: /opt/mailcow-dockerized/mailcow_backup.sh" in mailcow_defaults
     assert "/etc/logrotate.d/mailcow_backup" in mailcow
 
+    assert 'name: "Caddy Site Backup"' in caddy
     assert 'name: "Caddy Full Backup"' in caddy
+    assert "CADDY_BACKUP_SUBDIR" in read_role_file(
+        "roles/gateway/caddy/templates/caddy_backup.sh.j2"
+    )
     assert 'caddy_backup_cron_hour: "5,17"' in caddy_defaults
     assert "cron_file: \"{{ caddy_backup_cron_file }}\"" in caddy
     assert "user: root" in caddy

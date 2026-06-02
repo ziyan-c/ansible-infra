@@ -64,7 +64,7 @@
 
 
 # ==========================================
-# 自动化备份 Caddy 目录 (Site, Config, Data)
+# 自动化备份 Caddy site 目录
 # ==========================================
 - name: 创建 Caddy 备份存放目录
   file:
@@ -85,9 +85,16 @@
     name: "Caddy Full Backup"
     state: absent
 
-- name: 设置定时任务 (每天凌晨 5 点, 17 点 执行 Caddy 备份)
+- name: 移除旧的 Caddy cron.d 全量备份任务
   ansible.builtin.cron:
     name: "Caddy Full Backup"
+    cron_file: "{{ caddy_backup_cron_file }}"
+    user: root
+    state: absent
+
+- name: 设置定时任务 (每天凌晨 5 点, 17 点 执行 Caddy site 备份)
+  ansible.builtin.cron:
+    name: "Caddy Site Backup"
     cron_file: "{{ caddy_backup_cron_file }}"
     user: root
     minute: "{{ caddy_backup_cron_minute }}"
