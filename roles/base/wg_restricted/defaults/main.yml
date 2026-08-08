@@ -18,5 +18,5 @@ wg_restricted_trusted_interface: wg0
 wg_restricted_firewall_script_path: /usr/local/sbin/wg-restricted-firewall
 wg_restricted_forward_chain: WG_RESTRICTED_FORWARD
 wg_restricted_input_chain: WG_RESTRICTED_INPUT
+wg_restricted_docker_user_chain: DOCKER-USER
 wg_restricted_iptables_binary: iptables
-

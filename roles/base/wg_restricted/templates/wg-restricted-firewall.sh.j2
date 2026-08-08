@@ -7,6 +7,7 @@ WG_IF="{{ wg_restricted_interface }}"
 TRUSTED_IF="{{ wg_restricted_trusted_interface }}"
 FORWARD_CHAIN="{{ wg_restricted_forward_chain }}"
 INPUT_CHAIN="{{ wg_restricted_input_chain }}"
+DOCKER_USER_CHAIN="{{ wg_restricted_docker_user_chain }}"
 
 delete_jump() {
   local base_chain="$1"
@@ -28,6 +29,7 @@ case "$ACTION" in
   up)
     delete_jump FORWARD "$FORWARD_CHAIN"
     delete_jump INPUT "$INPUT_CHAIN"
+    delete_jump "$DOCKER_USER_CHAIN" "$FORWARD_CHAIN"
 
     "$IPT" -w -N "$FORWARD_CHAIN" 2>/dev/null || true
     "$IPT" -w -F "$FORWARD_CHAIN"
@@ -44,6 +46,11 @@ case "$ACTION" in
       -j REJECT --reject-with icmp-admin-prohibited
     "$IPT" -w -I FORWARD 1 -j "$FORWARD_CHAIN"
 
+    # Docker places its ACCEPT rules before ordinary FORWARD rules. Hook the
+    # same policy into DOCKER-USER so restricted traffic is filtered first.
+    "$IPT" -w -N "$DOCKER_USER_CHAIN" 2>/dev/null || true
+    "$IPT" -w -I "$DOCKER_USER_CHAIN" 1 -j "$FORWARD_CHAIN"
+
     "$IPT" -w -N "$INPUT_CHAIN" 2>/dev/null || true
     "$IPT" -w -F "$INPUT_CHAIN"
     "$IPT" -w -A "$INPUT_CHAIN" -i "$WG_IF" \
@@ -55,6 +62,7 @@ case "$ACTION" in
     "$IPT" -w -I INPUT 1 -j "$INPUT_CHAIN"
     ;;
   down)
+    delete_jump "$DOCKER_USER_CHAIN" "$FORWARD_CHAIN"
     delete_jump FORWARD "$FORWARD_CHAIN"
     delete_jump INPUT "$INPUT_CHAIN"
     delete_chain "$FORWARD_CHAIN"

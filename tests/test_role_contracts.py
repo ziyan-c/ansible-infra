@@ -174,6 +174,7 @@ def test_wg_restricted_builds_second_hub_spoke_network_with_hub_firewall():
     assert "wg_restricted_interface: wg-restricted" in defaults
     assert "wg_restricted_hub_ip_suffix: 1" in defaults
     assert "wg_restricted_nodes: {}" in defaults
+    assert "wg_restricted_docker_user_chain: DOCKER-USER" in defaults
 
     assert "inventory_hostname == wg_restricted_hub_host" in tasks
     assert "wg_restricted_nodes | dict2items" in tasks
@@ -197,6 +198,8 @@ def test_wg_restricted_builds_second_hub_spoke_network_with_hub_firewall():
     assert '-o "$WG_IF" -p tcp' in firewall
     assert "-j REJECT --reject-with tcp-reset" in firewall
     assert "-j REJECT --reject-with icmp-admin-prohibited" in firewall
+    assert 'delete_jump "$DOCKER_USER_CHAIN" "$FORWARD_CHAIN"' in firewall
+    assert '"$IPT" -w -I "$DOCKER_USER_CHAIN" 1 -j "$FORWARD_CHAIN"' in firewall
     assert "INPUT 1 -j \"$INPUT_CHAIN\"" in firewall
 
     assert "wg_restricted_network_cidr" in wg0_template
